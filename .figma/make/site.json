@@ -1,0 +1,10 @@
+{
+  "description": "This web app enables students to record lectures, translate audio, generate summaries, and interact with an AI tutor for enhanced learning.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
