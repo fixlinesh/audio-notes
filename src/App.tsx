@@ -1,5 +1,3 @@
-import AuthScreen from "./AuthScreen";
-import { supabase } from "./lib/supabase";
 import {
   createElement,
   type ButtonHTMLAttributes,
@@ -11,12 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
-import {
-  demoSummary,
-  demoTranscript,
-  requestSummary,
-  type SummaryState,
-} from "./summarize";
+import { supabase, saveRecording } from "./lib/supabase";
 
 type Screen =
   | "home"
@@ -37,6 +30,10 @@ type Lecture = {
   outputLanguage: Language;
   sourceType: "recording" | "upload";
   sourceFile?: string;
+  audioBlob?: Blob;
+  audioUrl?: string;
+  audioDuration?: number;
+  audioMimeType?: string;
 };
 type IconName =
   | "arrow"
@@ -203,6 +200,10 @@ function Select({
 
 function Textarea({ className = "", ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return createElement("textarea", { className: `focus-ring ${className}`, ...props });
+}
+
+function Audio({ ...props }: ComponentPropsWithRef<"audio">) {
+  return createElement("audio", props);
 }
 
 function Heading({
@@ -516,11 +517,15 @@ function Home({
             </div>
           </div>
           <div className="mt-4 space-y-3">
-            {["Learning profile", "Notification settings", "Sign out demo"].map((item) => (
+            {["Learning profile", "Notification settings", "Sign out"].map((item) => (
               <Button
                 className="flex w-full items-center justify-between rounded-2xl border border-line bg-card p-4 text-sm font-semibold text-white"
                 key={item}
-                onClick={() => setProfileFeedback(`${item} updated for this demo.`)}
+                onClick={() =>
+                  item === "Sign out"
+                    ? supabase.auth.signOut()
+                    : setProfileFeedback(`${item} updated for this demo.`)
+                }
               >
                 {item}
                 <Icon name="arrow" className="size-4 text-copy-dim" />
@@ -588,18 +593,27 @@ type SpeechRecognitionInstance = {
 };
 
 type SpeechRecognitionConstructor = new () => SpeechRecognitionInstance;
+type RecorderState =
+  | "idle"
+  | "requestingPermission"
+  | "recording"
+  | "paused"
+  | "stopping"
+  | "recorded"
+  | "error";
 
 function Recording({
-  onLectureReady,
+  onRecordingContinue,
+  onUploadReady,
 }: {
-  onLectureReady: (sourceType: Lecture["sourceType"], sourceFile?: string, transcript?: string, mediaFile?: Blob | File) => void;
+  onRecordingContinue: (audio: { blob: Blob; duration: number; mimeType: string }) => void;
+  onUploadReady: (sourceFile: string) => void;
 }) {
-  const [running, setRunning] = useState(false);
-  const [hasStarted, setHasStarted] = useState(false);
-  const [stopped, setStopped] = useState(false);
+  const [recordingState, setRecordingState] = useState<RecorderState>("idle");
   const [elapsed, setElapsed] = useState(0);
   const [sourceLanguage, setSourceLanguage] = useState("en-US");
   const [outputLanguage, setOutputLanguage] = useState("kk-KZ");
+  const [liveTranscriptEnabled, setLiveTranscriptEnabled] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [interimTranscript, setInterimTranscript] = useState("");
   const [speechStatus, setSpeechStatus] = useState("Ready");
@@ -607,23 +621,66 @@ function Recording({
   const [showAudioSettings, setShowAudioSettings] = useState(false);
   const [noiseFilter, setNoiseFilter] = useState(true);
   const [recordingNotice, setRecordingNotice] = useState("");
+  const [recordingError, setRecordingError] = useState("");
+  const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
+  const [recordedUrl, setRecordedUrl] = useState("");
+  const [recordedDuration, setRecordedDuration] = useState(0);
+  const [playerDuration, setPlayerDuration] = useState(0);
   const [showUpload, setShowUpload] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const recorderRef = useRef<MediaRecorder | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const recordingMimeRef = useRef("audio/webm");
+  const audioChunksRef = useRef<BlobPart[]>([]);
+  const elapsedRef = useRef(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const recordedUrlRef = useRef("");
+  const recorderFailedRef = useRef(false);
+  const startRequestRef = useRef(false);
+  const componentMountedRef = useRef(true);
+  const running = recordingState === "recording";
+  const hasStarted = ["recording", "paused", "stopping"].includes(recordingState);
+  const stopped = recordingState === "stopping";
+  const microphoneAvailable =
+    typeof navigator !== "undefined" &&
+    Boolean(navigator.mediaDevices?.getUserMedia) &&
+    typeof MediaRecorder !== "undefined";
 
   useEffect(() => {
     if (!running) return;
-    const timer = window.setInterval(() => setElapsed((value) => value + 1), 1000);
+    const timer = window.setInterval(() => {
+      setElapsed((value) => {
+        const next = value + 1;
+        elapsedRef.current = next;
+        return next;
+      });
+    }, 1000);
     return () => window.clearInterval(timer);
   }, [running]);
 
   useEffect(() => {
-    if (!running) {
+    componentMountedRef.current = true;
+    return () => {
+      componentMountedRef.current = false;
+      startRequestRef.current = false;
+      const recorder = mediaRecorderRef.current;
+      if (recorder && recorder.state !== "inactive") {
+        recorder.ondataavailable = null;
+        recorder.onstop = null;
+        recorder.stop();
+      }
+      mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current = null;
+      if (recordedUrlRef.current) {
+        URL.revokeObjectURL(recordedUrlRef.current);
+        recordedUrlRef.current = "";
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!running || !liveTranscriptEnabled) {
       recognitionRef.current?.stop();
       recognitionRef.current = null;
       setInterimTranscript("");
@@ -684,83 +741,211 @@ function Recording({
       recognition.stop();
       recognitionRef.current = null;
     };
-  }, [running, sourceLanguage]);
+  }, [liveTranscriptEnabled, running, sourceLanguage]);
 
   const time = [Math.floor(elapsed / 3600), Math.floor((elapsed % 3600) / 60), elapsed % 60]
     .map((value) => String(value).padStart(2, "0"))
     .join(":");
 
-  const startOrResumeRecording = async () => {
-    setHasStarted(true);
-    setStopped(false);
+  const stopStreamTracks = (stream: MediaStream | null) => {
+    stream?.getTracks().forEach((track) => track.stop());
+  };
+
+  const setRecorderError = (category: string, message: string) => {
+    setRecordingState("error");
+    setRecordingError(`${message} (${category})`);
     setRecordingNotice("");
+    setSpeechStatus("Recording error");
+  };
+
+  const startRecording = async () => {
+    if (
+      !["idle", "error"].includes(recordingState) ||
+      mediaRecorderRef.current ||
+      startRequestRef.current
+    ) {
+      return;
+    }
+    startRequestRef.current = true;
+
+    setRecordingError("");
+    setRecordingNotice("");
+    setRecordingState("requestingPermission");
+    setSpeechStatus("Requesting microphone…");
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setRecorderError(
+        window.isSecureContext ? "mediaDevicesUnavailable" : "insecureContext",
+        window.isSecureContext
+          ? "Microphone access is unavailable in this browser."
+          : "Microphone recording requires a secure HTTPS connection.",
+      );
+      startRequestRef.current = false;
+      return;
+    }
+
+    if (typeof MediaRecorder === "undefined") {
+      setRecorderError("mediaRecorderUnsupported", "This browser does not support MediaRecorder.");
+      startRequestRef.current = false;
+      return;
+    }
+
+    let requestedStream: MediaStream | null = null;
     try {
-      if (recorderRef.current?.state === "paused") {
-        recorderRef.current.resume();
-        setRunning(true);
+      requestedStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (!componentMountedRef.current) {
+        stopStreamTracks(requestedStream);
+        startRequestRef.current = false;
         return;
       }
-      if (!recorderRef.current || recorderRef.current.state === "inactive") {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaStreamRef.current = stream;
-        const preferred = MediaRecorder.isTypeSupported("audio/webm;codecs=opus") ? "audio/webm;codecs=opus" : "audio/webm";
-        const recorder = new MediaRecorder(stream, { mimeType: preferred });
-        recordingMimeRef.current = preferred;
-        audioChunksRef.current = [];
-        recorder.ondataavailable = (event) => { if (event.data.size) audioChunksRef.current.push(event.data); };
-        recorder.start(1000);
-        recorderRef.current = recorder;
+
+      const preferredTypes = [
+        "audio/webm;codecs=opus",
+        "audio/webm",
+        "audio/mp4;codecs=mp4a.40.2",
+        "audio/mp4",
+      ];
+      let mimeType = preferredTypes.find((type) => MediaRecorder.isTypeSupported(type)) ?? "";
+      let recorder: MediaRecorder;
+      try {
+        recorder = mimeType
+          ? new MediaRecorder(requestedStream, { mimeType })
+          : new MediaRecorder(requestedStream);
+      } catch {
+        mimeType = "";
+        recorder = new MediaRecorder(requestedStream);
       }
-      setRunning(true);
+
+      mediaStreamRef.current = requestedStream;
+      mediaRecorderRef.current = recorder;
+      startRequestRef.current = false;
+      audioChunksRef.current = [];
+      recorderFailedRef.current = false;
+      elapsedRef.current = 0;
+      setElapsed(0);
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) audioChunksRef.current.push(event.data);
+      };
+      recorder.onerror = () => {
+        recorderFailedRef.current = true;
+        stopStreamTracks(mediaStreamRef.current);
+        mediaStreamRef.current = null;
+        mediaRecorderRef.current = null;
+        setRecorderError("mediaRecorderError", "The browser reported an error while recording.");
+      };
+      recorder.onstop = () => {
+        if (recorderFailedRef.current) return;
+        stopStreamTracks(mediaStreamRef.current);
+        mediaStreamRef.current = null;
+        mediaRecorderRef.current = null;
+
+        try {
+          const chunkMimeType = audioChunksRef.current.find(
+            (chunk): chunk is Blob => chunk instanceof Blob && Boolean(chunk.type),
+          )?.type;
+          const recordedMimeType = recorder.mimeType || chunkMimeType || mimeType;
+          const blob = recordedMimeType
+            ? new Blob(audioChunksRef.current, { type: recordedMimeType })
+            : new Blob(audioChunksRef.current);
+
+          if (blob.size === 0) {
+            setRecorderError("emptyRecording", "No audio was captured. Please record again.");
+            return;
+          }
+
+          if (recordedUrlRef.current) URL.revokeObjectURL(recordedUrlRef.current);
+          const url = URL.createObjectURL(blob);
+          recordedUrlRef.current = url;
+          setRecordedBlob(blob);
+          setRecordedUrl(url);
+          setRecordedDuration(Math.max(1, elapsedRef.current));
+          setPlayerDuration(Math.max(1, elapsedRef.current));
+          setRecordingState("recorded");
+          setSpeechStatus("Recording ready");
+          setRecordingNotice("Recording saved. Listen before continuing.");
+        } catch {
+          setRecorderError("recordingFinalizationFailure", "The recorded audio could not be prepared for playback.");
+        }
+      };
+
+      recorder.start();
+      setRecordingState("recording");
       setSpeechStatus("Listening");
-    } catch {
-      setSpeechStatus("Microphone access needed");
-      setRecordingNotice("Allow microphone access in your browser, then try again.");
+    } catch (error) {
+      startRequestRef.current = false;
+      stopStreamTracks(requestedStream);
+      mediaStreamRef.current = null;
+      mediaRecorderRef.current = null;
+
+      const errorName = error instanceof DOMException ? error.name : "initializationFailure";
+      if (["NotAllowedError", "PermissionDeniedError"].includes(errorName)) {
+        setRecorderError("permissionDenied", "Microphone access is required to record a lecture.");
+      } else if (["NotFoundError", "DevicesNotFoundError"].includes(errorName)) {
+        setRecorderError("microphoneUnavailable", "No microphone was found on this device.");
+      } else if (["NotReadableError", "TrackStartError"].includes(errorName)) {
+        setRecorderError("microphoneBusy", "The microphone is unavailable or is being used by another application.");
+      } else if (errorName === "SecurityError") {
+        setRecorderError("securityError", "The browser blocked microphone access for security reasons.");
+      } else {
+        setRecorderError(errorName, "Recording initialization failed.");
+      }
     }
   };
 
-  const toggleRecording = () => {
-    if (running) {
-      recorderRef.current?.pause();
-      setRunning(false);
-      setSpeechStatus("Paused");
-      recognitionRef.current?.stop();
-    } else {
-      void startOrResumeRecording();
+  const togglePause = () => {
+    const recorder = mediaRecorderRef.current;
+    if (!recorder) return;
+    if (recorder.state === "recording") {
+      recorder.pause();
+      setRecordingState("paused");
+      setSpeechStatus("Recording paused");
+    } else if (recorder.state === "paused") {
+      recorder.resume();
+      setRecordingState("recording");
+      setSpeechStatus("Listening");
     }
   };
 
   const stopRecording = () => {
-    if (recorderRef.current?.state === "recording" || recorderRef.current?.state === "paused") recorderRef.current.stop();
-    mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
-    setRunning(false);
-    setStopped(true);
-    setSpeechStatus("Recording stopped");
-    setRecordingNotice("Recording stopped. Resume it or finish the lecture.");
+    const recorder = mediaRecorderRef.current;
+    if (!recorder || recorder.state === "inactive") return;
+    setRecordingState("stopping");
+    setSpeechStatus("Saving recording…");
+    try {
+      recorder.stop();
+    } catch (error) {
+      stopStreamTracks(mediaStreamRef.current);
+      mediaStreamRef.current = null;
+      mediaRecorderRef.current = null;
+      const category = error instanceof DOMException ? error.name : "stopFailure";
+      setRecorderError(category, "The recording could not be stopped correctly.");
+    }
   };
 
-  const finishLecture = async () => {
-    setRunning(false);
-    setStopped(true);
-    setSpeechStatus("Lecture complete");
-    recognitionRef.current?.stop();
-    const recorder = recorderRef.current;
-    let audioBlob: Blob | undefined;
-    if (recorder && recorder.state !== "inactive") {
-      audioBlob = await new Promise<Blob>((resolve) => {
-        const originalStop = recorder.onstop;
-        recorder.onstop = () => {
-          originalStop?.call(recorder, new Event("stop"));
-          resolve(new Blob(audioChunksRef.current, { type: recordingMimeRef.current }));
-        };
-        recorder.stop();
-      });
-    } else if (audioChunksRef.current.length) {
-      audioBlob = new Blob(audioChunksRef.current, { type: recordingMimeRef.current });
+  const deleteRecording = () => {
+    audioRef.current?.pause();
+    if (recordedUrlRef.current) {
+      URL.revokeObjectURL(recordedUrlRef.current);
+      recordedUrlRef.current = "";
     }
-    mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
-    recorderRef.current = null;
-    onLectureReady("recording", undefined, `${transcript}${interimTranscript}`.trim(), audioBlob);
+    setRecordedBlob(null);
+    setRecordedUrl("");
+    setRecordedDuration(0);
+    setPlayerDuration(0);
+    setElapsed(0);
+    elapsedRef.current = 0;
+    setRecordingState("idle");
+    setRecordingNotice("");
+    setRecordingError("");
+    setSpeechStatus("Ready");
+    setTranscript("");
+    setInterimTranscript("");
+  };
+
+  const formatAudioTime = (seconds: number) => {
+    const safeSeconds = Number.isFinite(seconds) ? Math.max(0, Math.floor(seconds)) : 0;
+    return `${String(Math.floor(safeSeconds / 60)).padStart(2, "0")}:${String(safeSeconds % 60).padStart(2, "0")}`;
   };
 
   const selectFile = (file?: File) => {
@@ -773,6 +958,15 @@ function Recording({
       ? `${(selectedFile.size / (1024 * 1024)).toFixed(1)} MB`
       : `${Math.max(1, Math.round(selectedFile.size / 1024))} KB`
     : "";
+  const recorderStatusLabel: Record<RecorderState, string> = {
+    idle: "idle",
+    requestingPermission: "requesting permission",
+    recording: "active",
+    paused: "paused",
+    stopping: "stopping",
+    recorded: "completed",
+    error: "error",
+  };
 
   return (
     <div className="page-enter px-5">
@@ -789,57 +983,144 @@ function Recording({
           </Button>
         }
       />
+      <div className="mb-4 flex items-center justify-between rounded-xl border border-line bg-card px-3 py-2 text-mini font-semibold text-copy-dim">
+        <span>Microphone: {microphoneAvailable ? "available" : "unavailable"}</span>
+        <span className={recordingState === "error" ? "text-red" : recordingState === "recording" ? "text-green" : ""}>
+          Recording: {recorderStatusLabel[recordingState]}
+        </span>
+      </div>
 
-      <section className="flex flex-col items-center rounded-card border border-line bg-card px-5 py-7">
-        <div className="flex items-center gap-2 rounded-full border border-green/25 bg-green/10 px-3 py-2 text-xs font-semibold text-green">
-          <span className="size-1.5 rounded-full bg-green shadow-green" />
-          Acoustic Noise Filter: {noiseFilter ? "Active" : "Off"}
+      {recordedUrl ? (
+        <section className="rounded-card border border-accent/30 bg-card p-5 shadow-neon">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="text-xs font-bold uppercase tracking-wider text-green">Recording completed</div>
+              <Heading level={2} className="mt-1 text-lg font-bold text-white">
+                Lecture Recording
+              </Heading>
+              <p className="mt-1 text-xs text-copy-muted">
+                {recordedBlob?.type || "Browser audio"} · {formatAudioTime(playerDuration || recordedDuration)}
+              </p>
+            </div>
+            <div className="grid size-10 place-items-center rounded-xl bg-green/10 text-green">
+              <Icon name="check" className="size-5" />
+            </div>
+          </div>
+          <Audio
+            className="mt-5 w-full"
+            controls
+            onLoadedMetadata={(event) => {
+              const duration = event.currentTarget.duration;
+              if (Number.isFinite(duration)) {
+                setPlayerDuration(duration);
+                setRecordedDuration(duration);
+              }
+            }}
+            preload="metadata"
+            ref={audioRef}
+            src={recordedUrl}
+          />
+
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <Button
+              className="rounded-xl border border-red/25 bg-red/10 py-3 text-xs font-bold text-red"
+              onClick={deleteRecording}
+            >
+              Record Again
+            </Button>
+            <Button
+              className="rounded-xl bg-gradient-to-r from-accent to-purple py-3 text-xs font-bold text-white"
+              onClick={() =>
+                recordedBlob &&
+                onRecordingContinue({
+                  blob: recordedBlob,
+                  duration: recordedDuration,
+                  mimeType: recordedBlob.type,
+                })
+              }
+            >
+              Continue
+            </Button>
+          </div>
+          {recordingNotice && <p className="mt-4 text-xs font-semibold text-green">{recordingNotice}</p>}
+        </section>
+      ) : (
+        <section className="flex flex-col items-center rounded-card border border-line bg-card px-5 py-7">
+          <div className="flex items-center gap-2 rounded-full border border-green/25 bg-green/10 px-3 py-2 text-xs font-semibold text-green">
+            <span className={`size-1.5 rounded-full ${running ? "animate-pulse bg-red" : "bg-green shadow-green"}`} />
+            Acoustic Noise Filter: {noiseFilter ? "Active" : "Off"}
+          </div>
+
+          <div className="mt-8 font-mono text-4xl font-semibold tracking-wider text-white">{time}</div>
+          <p className="mt-2 text-xs text-copy-muted">
+            {recordingState === "requestingPermission"
+              ? "Waiting for microphone permission"
+              : running
+                ? "Recording microphone audio"
+                : stopped
+                  ? "Saving recording"
+                  : recordingState === "paused"
+                    ? "Recording paused"
+                    : recordingState === "error"
+                      ? "Recording unavailable"
+                      : "Ready to record"}
+          </p>
+
+          <div className={`waveform my-8 ${running ? "is-running" : ""}`}>
+            {waveBars.map((height, index) => (
+              <span
+                className="wave-bar"
+                key={`${height}-${index}`}
+                style={{ height: `${height}%`, animationDelay: `${index * -0.06}s` }}
+              />
+            ))}
+          </div>
+
+          <div className="flex items-center gap-5">
+            <Button
+              aria-label={running ? "Pause recording" : "Resume recording"}
+              className="grid size-14 place-items-center rounded-full border border-line bg-elevated text-white disabled:opacity-40"
+              disabled={!hasStarted || stopped}
+              onClick={togglePause}
+            >
+              <Icon name={running ? "pause" : "play"} />
+            </Button>
+            <Button
+              aria-label={hasStarted ? "Stop recording" : "Start recording"}
+              className="grid size-20 place-items-center rounded-full bg-red text-white shadow-red disabled:opacity-40"
+              disabled={recordingState === "requestingPermission" || stopped}
+              onClick={hasStarted ? stopRecording : startRecording}
+            >
+              <span className="grid size-14 place-items-center rounded-full border border-white/25">
+                <Icon name={hasStarted ? "stop" : "mic"} className="size-6" />
+              </span>
+            </Button>
+            <Button
+              aria-label="Audio settings"
+              className="grid size-14 place-items-center rounded-full border border-line bg-elevated text-white"
+              onClick={() => setShowAudioSettings((value) => !value)}
+            >
+              <Icon name="wave" />
+            </Button>
+          </div>
+          <p className="mt-4 text-xs font-bold text-white">
+            {recordingState === "requestingPermission"
+              ? "Requesting Permission…"
+              : hasStarted
+                ? running
+                  ? "Tap center to stop"
+                  : "Paused"
+                : "Start Recording"}
+          </p>
+          {recordingNotice && <p className="mt-3 text-xs font-semibold text-accent-bright">{recordingNotice}</p>}
+        </section>
+      )}
+
+      {recordingError && (
+        <div className="mt-4 rounded-xl border border-red/25 bg-red/10 p-4 text-sm font-semibold text-red">
+          {recordingError}
         </div>
-
-        <div className="mt-8 font-mono text-4xl font-semibold tracking-wider text-white">{time}</div>
-        <p className="mt-2 text-xs text-copy-muted">
-          {running ? "Recording in progress" : stopped ? "Recording stopped" : hasStarted ? "Recording paused" : "Ready to record"}
-        </p>
-
-        <div className={`waveform my-8 ${running ? "is-running" : ""}`}>
-          {waveBars.map((height, index) => (
-            <span
-              className="wave-bar"
-              key={`${height}-${index}`}
-              style={{ height: `${height}%`, animationDelay: `${index * -0.06}s` }}
-            />
-          ))}
-        </div>
-
-        <div className="flex items-center gap-5">
-          <Button
-            className="grid size-14 place-items-center rounded-full border border-line bg-elevated text-white"
-            onClick={toggleRecording}
-          >
-            <Icon name={running ? "pause" : "play"} />
-            <span className="sr-only">{running ? "Pause" : "Resume"}</span>
-          </Button>
-          <Button
-            className="grid size-20 place-items-center rounded-full bg-red text-white shadow-red disabled:opacity-40"
-            disabled={!running && elapsed === 0}
-            onClick={stopRecording}
-          >
-            <span className="grid size-14 place-items-center rounded-full border border-white/25">
-              <Icon name="stop" className="size-6" />
-            </span>
-            <span className="sr-only">Stop recording</span>
-          </Button>
-          <Button
-            aria-label="Audio settings"
-            className="grid size-14 place-items-center rounded-full border border-line bg-elevated text-white"
-            onClick={() => setShowAudioSettings((value) => !value)}
-          >
-            <Icon name="wave" />
-            <span className="sr-only">Audio settings</span>
-          </Button>
-        </div>
-        {recordingNotice && <p className="mt-5 text-xs font-semibold text-accent-bright">{recordingNotice}</p>}
-      </section>
+      )}
 
       {showOptions && (
         <section className="mt-4 rounded-2xl border border-line bg-card p-4">
@@ -933,8 +1214,22 @@ function Recording({
               Live Transcript
             </Heading>
           </div>
-          <span className="text-mini font-semibold uppercase tracking-wider text-copy-dim">{speechStatus}</span>
+          <span className="text-mini font-semibold uppercase tracking-wider text-copy-dim">
+            {liveTranscriptEnabled ? speechStatus : "Optional"}
+          </span>
         </div>
+        {!recordedUrl && (
+          <Button
+            className={`mb-4 rounded-xl border px-3 py-2 text-xs font-bold ${
+              liveTranscriptEnabled
+                ? "border-purple/30 bg-purple/10 text-purple-light"
+                : "border-line bg-elevated text-copy-muted"
+            }`}
+            onClick={() => setLiveTranscriptEnabled((value) => !value)}
+          >
+            {liveTranscriptEnabled ? "Disable Live Transcript" : "Enable Live Transcript"}
+          </Button>
+        )}
         <div className="max-h-44 overflow-hidden text-sm leading-7 text-copy-muted">
           {transcript || interimTranscript ? (
             <p>
@@ -946,27 +1241,23 @@ function Recording({
             <p>
               {running
                 ? "Start speaking — your live transcript will appear here."
-                : "Press play to begin recording and live transcription."}
+                : recordedUrl
+                  ? "The browser transcript is complete for this recording."
+                  : "Start recording to begin optional browser live transcription."}
             </p>
           )}
         </div>
       </section>
 
-      <Button
-        className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-accent/40 bg-accent-muted px-4 py-4 text-sm font-bold text-accent-bright"
-        onClick={() => setShowUpload(true)}
-      >
-        <Icon name="upload" className="size-5" />
-        Upload Lecture
-      </Button>
-
-      <Button
-        className="mt-4 w-full rounded-xl bg-gradient-to-r from-accent to-purple px-4 py-4 text-sm font-bold text-white shadow-glow disabled:opacity-40"
-        disabled={!hasStarted}
-        onClick={finishLecture}
-      >
-        Finish Lecture
-      </Button>
+      {!recordedUrl && (
+        <Button
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-accent/40 bg-accent-muted px-4 py-4 text-sm font-bold text-accent-bright"
+          onClick={() => setShowUpload(true)}
+        >
+          <Icon name="upload" className="size-5" />
+          Upload Lecture
+        </Button>
+      )}
 
       {showUpload && (
         <OverlayPanel title="Upload Lecture" subtitle="Audio or video file" onClose={() => setShowUpload(false)}>
@@ -1037,7 +1328,7 @@ function Recording({
             <Button
               className="rounded-xl bg-gradient-to-r from-accent to-purple py-4 text-sm font-bold text-white disabled:opacity-40"
               disabled={!selectedFile}
-              onClick={() => selectedFile && onLectureReady("upload", selectedFile.name, "", selectedFile)}
+              onClick={() => selectedFile && onUploadReady(selectedFile.name)}
             >
               Continue
             </Button>
@@ -1146,8 +1437,6 @@ function Processing({
   onComplete,
   navigate,
   openTests,
-  summary,
-  onRetry,
 }: {
   lecture: Lecture;
   initiallyComplete: boolean;
@@ -1155,22 +1444,17 @@ function Processing({
   onComplete: () => void;
   navigate: (screen: Screen) => void;
   openTests: (mode: "quiz" | "cards") => void;
-  summary: SummaryState;
-  onRetry: () => void;
 }) {
   const [stage, setStage] = useState(initiallyComplete ? processingStages.length : 0);
 
   useEffect(() => {
-    if (summary.status === "error") return;
     if (stage >= processingStages.length) {
       onComplete();
       return;
     }
-    // The last stage waits for the real AI response.
-    if (stage === processingStages.length - 1 && summary.status === "loading") return;
     const timer = window.setTimeout(() => setStage((value) => value + 1), 700);
     return () => window.clearTimeout(timer);
-  }, [stage, onComplete, summary.status]);
+  }, [stage, onComplete]);
 
   const ready = stage >= processingStages.length;
   const progress = Math.min(100, Math.round((stage / processingStages.length) * 100));
@@ -1193,15 +1477,9 @@ function Processing({
             style={{ width: `${progress}%` }}
           />
         </div>
-
-        {summary.status === "error" && (
-          <div className="mt-5 rounded-xl border border-red/30 bg-red/10 p-4">
-            <p className="text-sm font-semibold text-red">{summary.error}</p>
-            <Button className="mt-3 rounded-lg bg-accent px-4 py-2 text-xs font-bold text-white" onClick={onRetry}>
-              Try again
-            </Button>
-          </div>
-        )}
+        <p className="mt-3 text-xs leading-5 text-copy-dim">
+          Prototype simulation: your recorded audio stays in this browser. Transcription, translation, and AI generation are demonstrated locally.
+        </p>
 
         <div className="mt-6 space-y-1">
           {processingStages.map((item, index) => {
@@ -1266,32 +1544,22 @@ function LectureSummary({
   onBack,
   navigate,
   openTests,
-  summary,
-  transcript,
-  onRegenerate,
 }: {
   lecture: Lecture;
   onBack: () => void;
   navigate: (screen: Screen) => void;
   openTests: (mode: "quiz" | "cards") => void;
-  summary: SummaryState;
-  transcript: string;
-  onRegenerate: (language: Language) => void;
 }) {
-  const data = summary.data ?? demoSummary;
-  const regenerating = summary.status === "loading";
   const [version, setVersion] = useState<"original" | "simplified">("original");
   const [language, setLanguage] = useState<Language>(lecture.outputLanguage);
   const [editing, setEditing] = useState(false);
   const [saved, setSaved] = useState(false);
   const [downloadStatus, setDownloadStatus] = useState("");
-  const [explanation, setExplanation] = useState(data.explanation);
-  const simplified = data.simplified;
-
-  useEffect(() => {
-    setExplanation(data.explanation);
-    setSaved(false);
-  }, [data.explanation]);
+  const [explanation, setExplanation] = useState(
+    "Dijkstra’s algorithm solves the single-source shortest-path problem by repeatedly selecting the unvisited vertex with the smallest known distance and relaxing its outgoing edges.",
+  );
+  const simplified =
+    "Dijkstra works like choosing the closest place you can reach next. Each time it finds a shorter route, it updates the map until every destination has the best known distance.";
 
   const download = () => {
     setDownloadStatus("Preparing printable summary…");
@@ -1315,11 +1583,7 @@ function LectureSummary({
           <Select
             aria-label="Summary language"
             className="rounded-xl bg-elevated px-3 py-2 text-xs font-semibold text-white"
-            onChange={(event) => {
-              const next = event.target.value as Language;
-              setLanguage(next);
-              if (transcript.trim()) onRegenerate(next);
-            }}
+            onChange={(event) => setLanguage(event.target.value as Language)}
             value={language}
           >
             {languages.map((item) => <option key={item}>{item}</option>)}
@@ -1330,13 +1594,6 @@ function LectureSummary({
           <div className="rounded-xl bg-elevated p-3 text-copy-muted">Output: <span className="text-white">{language}</span></div>
         </div>
       </section>
-
-      {regenerating && (
-        <div className="mt-4 rounded-xl bg-accent-muted p-3 text-xs font-semibold text-accent-bright">Generating summary…</div>
-      )}
-      {summary.status === "error" && (
-        <div className="mt-4 rounded-xl border border-red/30 bg-red/10 p-3 text-xs font-semibold text-red">{summary.error}</div>
-      )}
 
       <div className="mt-4 grid grid-cols-2 rounded-xl bg-card p-1">
         <Button
@@ -1387,7 +1644,11 @@ function LectureSummary({
       <section className="mt-4 rounded-card border border-line bg-card p-5">
         <Heading level={2} className="text-base font-bold text-white">Key Points</Heading>
         <ul className="mt-4 space-y-3 text-sm leading-6 text-copy-muted">
-          {data.keyPoints.map((item) => (
+          {[
+            "Always selects the unvisited node with the smallest known distance.",
+            "Uses edge relaxation to improve tentative distances.",
+            "Requires non-negative edge weights for correct results.",
+          ].map((item) => (
             <li className="flex gap-3" key={item}><span className="mt-2 size-1.5 shrink-0 rounded-full bg-accent-bright" />{item}</li>
           ))}
         </ul>
@@ -1396,7 +1657,7 @@ function LectureSummary({
       <section className="mt-4 rounded-card border border-line bg-card p-5">
         <Heading level={2} className="text-base font-bold text-white">Important Terms</Heading>
         <div className="mt-4 flex flex-wrap gap-2">
-          {data.terms.map((term) => (
+          {["Relaxation", "Priority Queue", "Weighted Graph", "Greedy Strategy"].map((term) => (
             <span className="rounded-full border border-purple/30 bg-purple/10 px-3 py-2 text-xs font-semibold text-purple-light" key={term}>{term}</span>
           ))}
         </div>
@@ -1405,14 +1666,14 @@ function LectureSummary({
       <section className="mt-4 rounded-card border border-line bg-card p-5">
         <Heading level={2} className="text-base font-bold text-white">Example</Heading>
         <p className="mt-3 text-sm leading-7 text-copy-muted">
-          {data.example}
+          If A→B costs 4 and A→C→B costs 2 + 1, relaxation updates the distance to B from 4 to 3.
         </p>
       </section>
 
       <section className="mt-4 rounded-card border border-line bg-card p-5">
         <Heading level={2} className="text-base font-bold text-white">Original Transcript</Heading>
         <p className="mt-3 text-sm leading-7 text-copy-muted">
-          {transcript.trim() || demoTranscript}
+          Today we’re looking at graph traversal, specifically how Dijkstra’s algorithm finds the shortest path between nodes. We maintain a set of unvisited vertices and select the smallest known distance.
         </p>
       </section>
 
@@ -2150,60 +2411,18 @@ const defaultLecture: Lecture = {
 };
 
 export default function App() {
-  const [sessionReady, setSessionReady] = useState(false);
-  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [screen, setScreen] = useState<Screen>("home");
   const [selectedLecture, setSelectedLecture] = useState<Lecture>(defaultLecture);
   const [processed, setProcessed] = useState(false);
   const [testMode, setTestMode] = useState<"quiz" | "cards">("quiz");
   const [testsEntry, setTestsEntry] = useState(0);
-  const [transcript, setTranscript] = useState("");
-  const [summary, setSummary] = useState<SummaryState>({ status: "idle" });
-  const requestId = useRef(0);
 
   useEffect(() => {
-    if (!supabase) { setSessionReady(true); return; }
-    let mounted = true;
-    supabase.auth.getSession().then(({ data }) => {
-      if (!mounted) return;
-      setUserEmail(data.session?.user.email ?? null);
-      setSessionReady(true);
-    });
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUserEmail(session?.user.email ?? null);
-      setSessionReady(true);
-      if (!session) setScreen("home");
-    });
-    return () => { mounted = false; listener.subscription.unsubscribe(); };
-  }, []);
-
-  const runSummary = async (lecture: Lecture, text: string, outputLanguage: Language = lecture.outputLanguage) => {
-    const id = ++requestId.current;
-    if (text.trim().length < 20) {
-      setSummary({
-        status: "error",
-        error:
-          lecture.sourceType === "upload"
-            ? "Transcribing uploaded files is not connected yet. Record the lecture live for now."
-            : "No speech was captured. Allow the microphone and try recording again.",
-      });
-      return;
-    }
-    setSummary({ status: "loading" });
-    try {
-      const data = await requestSummary({
-        transcript: text,
-        title: lecture.title,
-        subject: lecture.subject,
-        sourceLanguage: lecture.sourceLanguage,
-        outputLanguage,
-      });
-      if (id === requestId.current) setSummary({ status: "done", data });
-    } catch (error) {
-      if (id === requestId.current)
-        setSummary({ status: "error", error: error instanceof Error ? error.message : "Something went wrong." });
-    }
-  };
+    const audioUrl = selectedLecture.audioUrl;
+    return () => {
+      if (audioUrl) URL.revokeObjectURL(audioUrl);
+    };
+  }, [selectedLecture.audioUrl]);
 
   const navigate = (nextScreen: Screen) => {
     if (nextScreen === "tests") {
@@ -2221,24 +2440,16 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const beginLectureInformation = async (sourceType: Lecture["sourceType"], sourceFile?: string, text = "", mediaFile?: Blob | File) => {
-    setTranscript(text);
-    setSummary({ status: "idle" });
-    if (supabase && mediaFile) {
-      const { data: authData } = await supabase.auth.getUser();
-      const currentUser = authData.user;
-      if (currentUser) {
-        const safeName = (sourceFile || "recording.webm").replace(/[^a-zA-Z0-9._-]+/g, "_");
-        const path = `${currentUser.id}/${crypto.randomUUID()}-${safeName}`;
-        const upload = await supabase.storage.from("lectures").upload(path, mediaFile, { contentType: mediaFile.type || "audio/webm", upsert: false });
-        if (!upload.error) {
-          await supabase.from("lectures").insert({ user_id: currentUser.id, file_path: path, file_name: safeName, source_type: sourceType, transcript: text || null });
-        } else {
-          console.error("Lecture upload failed", upload.error);
-        }
-      }
-    }
-    setSelectedLecture((current) => ({ ...current, sourceType, sourceFile }));
+  const beginLectureInformation = (sourceType: Lecture["sourceType"], sourceFile?: string) => {
+    setSelectedLecture((current) => ({
+      ...current,
+      sourceType,
+      sourceFile,
+      audioBlob: undefined,
+      audioUrl: undefined,
+      audioDuration: undefined,
+      audioMimeType: undefined,
+    }));
     setProcessed(false);
     setScreen("lecture-info");
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -2247,19 +2458,37 @@ export default function App() {
   const startProcessing = (lecture: Lecture) => {
     setSelectedLecture(lecture);
     setProcessed(false);
-    void runSummary(lecture, transcript);
     setScreen("processing");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  if (!sessionReady) return <div className="grid min-h-screen place-items-center bg-page text-sm text-copy-muted">Loading…</div>;
-  if (!userEmail) return <AuthScreen />;
+  const continueRecordedLecture = (audio: { blob: Blob; duration: number; mimeType: string }) => {
+    const audioUrl = URL.createObjectURL(audio.blob);
+    void saveRecording(audio.blob, audio.duration, audio.mimeType, `Lecture ${new Date().toLocaleString()}`);
+    setSelectedLecture((current) => ({
+      ...current,
+      sourceType: "recording",
+      sourceFile: "Lecture Recording",
+      audioBlob: audio.blob,
+      audioUrl,
+      audioDuration: audio.duration,
+      audioMimeType: audio.mimeType,
+    }));
+    setProcessed(false);
+    setScreen("processing");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   return (
     <div className="min-h-screen bg-page">
       <div className="relative mx-auto min-h-screen max-w-md overflow-x-hidden bg-app pb-page shadow-phone">
         {screen === "home" && <Home navigate={navigate} openTests={openTests} />}
-        {screen === "record" && <Recording onLectureReady={beginLectureInformation} />}
+        {screen === "record" && (
+          <Recording
+            onRecordingContinue={continueRecordedLecture}
+            onUploadReady={(sourceFile) => beginLectureInformation("upload", sourceFile)}
+          />
+        )}
         {screen === "lecture-info" && (
           <LectureInformation lecture={selectedLecture} onBack={() => navigate("record")} onStart={startProcessing} />
         )}
@@ -2270,9 +2499,7 @@ export default function App() {
             navigate={navigate}
             onBack={() => navigate("lecture-info")}
             onComplete={() => setProcessed(true)}
-            onRetry={() => void runSummary(selectedLecture, transcript)}
             openTests={openTests}
-            summary={summary}
           />
         )}
         {screen === "summary" && (
@@ -2280,10 +2507,7 @@ export default function App() {
             lecture={selectedLecture}
             navigate={navigate}
             onBack={() => navigate("processing")}
-            onRegenerate={(language) => void runSummary(selectedLecture, transcript, language)}
             openTests={openTests}
-            summary={summary}
-            transcript={transcript}
           />
         )}
         {screen === "notes" && (
@@ -2298,10 +2522,6 @@ export default function App() {
           />
         )}
         {screen === "teacher" && <Teacher lecture={selectedLecture} onBack={() => navigate("summary")} />}
-        <div className="fixed left-1/2 top-3 z-50 flex max-w-md -translate-x-1/2 items-center gap-2 rounded-full border border-line bg-card/95 px-3 py-1.5 text-[10px] font-semibold text-copy-muted backdrop-blur">
-          <span className="max-w-40 truncate">{userEmail}</span>
-          <button className="text-accent-bright" onClick={() => void supabase?.auth.signOut()}>Log out</button>
-        </div>
         <BottomNav onNavigate={navigate} screen={screen} />
       </div>
     </div>
