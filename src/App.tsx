@@ -1572,6 +1572,191 @@ function LectureSummary({
   const [editing, setEditing] = useState(false);
   const [saved, setSaved] = useState(false);
   const [downloadStatus, setDownloadStatus] = useState("");
+
+  // Состояния для работы с реальным ИИ (Gemini)
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [summaryData, setSummaryData] = useState<{
+    explanation: string;
+    simplified: string;
+    keyPoints: string[];
+    terms: string[];
+    example: string;
+  } | null>(null);
+
+  // Запрос к нашему серверу /api/summarize при загрузке экрана
+  useEffect(() => {
+    async function fetchSummary() {
+      try {
+        setLoading(true);
+        // Берем текст лекции или аудио-транскрипт
+        const transcriptText = lecture.title + " " + (lecture.subject || "") + " Лекция"; 
+        
+        const response = await fetch("/api/summarize", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            transcript: transcriptText,
+            title: lecture.title,
+            subject: lecture.subject,
+            sourceLanguage: lecture.sourceLanguage,
+            outputLanguage: language,
+          }),
+        });
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.error || "Не удалось получить ответ от ИИ");
+        }
+
+        const data = await response.json();
+        setSummaryData(data);
+      } catch (err: any) {
+        setError(err.message || "Ошибка подключения к ИИ");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchSummary();
+  }, [language]);
+
+  const download = () => {
+    setDownloadStatus("Preparing printable summary…");
+    window.setTimeout(() => {
+      setDownloadStatus("Summary ready for PDF.");
+      window.print();
+    }, 400);
+  };
+
+  if (loading) {
+    return (
+      <div className="summary-page page-enter px-5 text-center py-20">
+        <TopBar subtitle={`${lecture.subject} · ${lecture.date}`} title="Lecture Summary" />
+        <BackButton label="Back to Processing" onClick={onBack} />
+        <div className="mt-10 text-white animate-pulse">
+          <p className="text-lg">🤖 Искусственный интеллект (Gemini) анализирует лекцию...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="summary-page page-enter px-5 text-center py-20">
+        <TopBar subtitle={`${lecture.subject} · ${lecture.date}`} title="Lecture Summary" />
+        <BackButton label="Back to Processing" onClick={onBack} />
+        <div className="mt-10 text-red-400">
+          <p className="text-lg">❌ Ошибка: {error}</p>
+          <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 bg-blue-600 rounded text-white">
+            Повторить попытку
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const currentText = version === "original" ? summaryData?.explanation : summaryData?.simplified;
+
+  return (
+    <div className="summary-page page-enter px-5">
+      <TopBar subtitle={`${lecture.subject} · ${lecture.date}`} title="Lecture Summary" />
+      <BackButton label="Back to Processing" onClick={onBack} />
+
+      <section className="rounded-card border border-line bg-card p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <Heading level={2} className="text-xl font-bold text-white">{lecture.title}</Heading>
+            <p className="mt-1 text-xs text-copy-muted">{lecture.professor}</p>
+          </div>
+        </div>
+
+        <div className="mt-5 flex rounded-full bg-elevated p-1">
+          <button
+            onClick={() => setVersion("original")}
+            className={`flex-1 rounded-full py-2 text-xs font-medium transition ${
+              version === "original" ? "bg-card text-white shadow" : "text-copy-muted"
+            }`}
+          >
+            Original
+          </button>
+          <button
+            onClick={() => setVersion("simplified")}
+            className={`flex-1 rounded-full py-2 text-xs font-medium transition ${
+              version === "simplified" ? "bg-card text-white shadow" : "text-copy-muted"
+            }`}
+          >
+            Simplified
+          </button>
+        </div>
+
+        <div className="mt-5">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-white">AI Explanation</h3>
+            <button onClick={() => setEditing(!editing)} className="text-xs text-brand hover:underline">
+              {editing ? "Done" : "Edit"}
+            </button>
+          </div>
+
+          {editing ? (
+            <textarea
+              className="mt-2 w-full rounded-card border border-line bg-elevated p-3 text-sm text-white"
+              rows={4}
+              value={currentText}
+              onChange={(e) => {
+                if (!summaryData) return;
+                if (version === "original") {
+                  setSummaryData({ ...summaryData, explanation: e.target.value });
+                } else {
+                  setSummaryData({ ...summaryData, simplified: e.target.value });
+                }
+              }}
+            />
+          ) : (
+            <p className="mt-2 text-sm leading-relaxed text-copy">{currentText}</p>
+          )}
+
+          <button
+            onClick={() => setSaved(true)}
+            className="mt-4 rounded-button bg-elevated px-4 py-2 text-xs font-medium text-white hover:bg-neutral-800"
+          >
+            {saved ? "Saved ✓" : "Save"}
+          </button>
+        </div>
+      </section>
+
+      {/* Ключевые точки от Gemini */}
+      <section className="mt-5 rounded-card border border-line bg-card p-5">
+        <h3 className="text-sm font-semibold text-white">Key Points</h3>
+        <ul className="mt-3 space-y-2">
+          {summaryData?.keyPoints?.map((point, index) => (
+            <li key={index} className="text-xs text-copy flex items-start gap-2">
+              <span className="text-brand">•</span> {point}
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      {/* Термины */}
+      <section className="mt-5 rounded-card border border-line bg-card p-5">
+        <h3 className="text-sm font-semibold text-white">Key Terms</h3>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {summaryData?.terms?.map((term, index) => (
+            <span key={index} className="rounded-full bg-elevated px-3 py-1 text-xs text-white">
+              {term}
+            </span>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+  const [version, setVersion] = useState<"original" | "simplified">("original");
+  const [language, setLanguage] = useState<Language>(lecture.outputLanguage);
+  const [editing, setEditing] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [downloadStatus, setDownloadStatus] = useState("");
   const [explanation, setExplanation] = useState(
     "Dijkstra’s algorithm solves the single-source shortest-path problem by repeatedly selecting the unvisited vertex with the smallest known distance and relaxing its outgoing edges.",
   );
