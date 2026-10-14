@@ -6,8 +6,9 @@ const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 
 export async function POST(request: Request) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return json({ error: "Server is missing GEMINI_API_KEY." }, 500);
+    const apiKey = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+  if (!apiKey) return json({ error: "Server is missing Gemini API key." }, 500);
+
 
   let body: Record<string, unknown>;
   try {
