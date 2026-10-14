@@ -1296,7 +1296,7 @@ function Recording({
               Drag and drop a lecture file here, or browse files on your device.
             </p>
             <Input
-              accept="audio/*,video/*"
+              accept="audio/*,video/*,.pdf"
               className="hidden"
               onChange={(event) => selectFile(event.target.files?.[0])}
               ref={fileInputRef}
