@@ -1,5 +1,5 @@
 // Serverless function (Vercel) for Google Gemini
-const MODEL = "gemini-1.5-flash";
+const MODEL = "gemini-3.5-flash-lite";
 const MAX_TRANSCRIPT_CHARS = 60_000;
 
 const json = (body: unknown, status = 200) =>
