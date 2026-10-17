@@ -47,6 +47,7 @@ type Lecture = {
   outputLanguage: Language;
   sourceType: "recording" | "upload";
   sourceFile?: string;
+  transcript?: string;
   audioBlob?: Blob;
   audioUrl?: string;
   audioDuration?: number;
