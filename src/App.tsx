@@ -2512,25 +2512,30 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const beginLectureInformation = (sourceType: Lecture["sourceType"], sourceFile?: string) => {
-    setSelectedLecture((current) => ({
-      ...current,
+  const beginLectureInformation = async (sourceType: "recording" | "upload", sourceFile: string, fileObj?: File) => {
+    let fileTranscript = "";
+    
+    // Если пользователь загрузил PDF, читаем его текст прямо здесь
+    if (fileObj && (fileObj.name.toLowerCase().endsWith('.pdf') || fileObj.type === 'application/pdf')) {
+      try {
+        fileTranscript = await extractTextFromPDF(fileObj);
+      } catch (e) {
+        console.error("Ошибка при чтении PDF в beginLectureInformation:", e);
+      }
+    }
+
+    setSelectedLecture({
+      title: sourceFile ? sourceFile.replace(/\.[^/.]+$/, "") : "Uploaded Lecture",
+      subject: "General Subject",
+      professor: "AI Assistant",
+      date: new Date().toISOString().split("T")[0],
+      sourceLanguage: "English",
+      outputLanguage: "Kazakh",
       sourceType,
       sourceFile,
-      audioBlob: undefined,
-      audioUrl: undefined,
-      audioDuration: undefined,
-      audioMimeType: undefined,
-    }));
-    setProcessed(false);
+      transcript: fileTranscript, // <--- Сюда записывается реальный текст из PDF!
+    });
     setScreen("lecture-info");
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  const startProcessing = (lecture: Lecture) => {
-    setSelectedLecture(lecture);
-    setProcessed(false);
-    setScreen("processing");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -2558,7 +2563,8 @@ export default function App() {
         {screen === "record" && (
           <Recording
             onRecordingContinue={continueRecordedLecture}
-            onUploadReady={(sourceFile) => beginLectureInformation("upload", sourceFile)}
+            onUploadReady={(sourceFile, file) => beginLectureInformation("upload", sourceFile, file)}
+
           />
         )}
         {screen === "lecture-info" && (
