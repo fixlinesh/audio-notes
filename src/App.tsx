@@ -966,9 +966,22 @@ function Recording({
     return `${String(Math.floor(safeSeconds / 60)).padStart(2, "0")}:${String(safeSeconds % 60).padStart(2, "0")}`;
   };
 
-  const selectFile = (file?: File) => {
+   const selectFile = async (file?: File) => {
     if (!file) return;
     setSelectedFile(file);
+
+    // Если загружен PDF-файл, извлекаем из него текст
+    if (file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf') {
+      try {
+        const text = await extractTextFromPDF(file);
+        setPendingLecture((prev) => ({
+          ...prev,
+          transcript: text,
+        }));
+      } catch (err) {
+        console.error("Ошибка при чтении PDF:", err);
+      }
+    }
   };
 
   const fileSize = selectedFile
