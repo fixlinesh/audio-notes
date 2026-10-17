@@ -6,9 +6,8 @@ const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 
 export async function POST(request: Request) {
-    const apiKey = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+  const apiKey = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
   if (!apiKey) return json({ error: "Server is missing Gemini API key." }, 500);
-
 
   let body: Record<string, unknown>;
   try {
@@ -26,8 +25,9 @@ export async function POST(request: Request) {
   const outputLanguage = String(body.outputLanguage ?? "English").slice(0, 30);
 
   const prompt = `
-You are a study assistant for university students. You turn lecture transcripts into clear, accurate summaries.
+You are an expert study assistant for university students. Your task is to provide a comprehensive, deep, and highly detailed summary of the lecture transcript provided below.
 The transcript comes from speech recognition and may contain errors; fix obvious ones using context.
+Provide a thorough and exhaustive breakdown of all topics, core arguments, concepts, and logical steps covered in the lecture. Do not be too brief — explain the concepts fully.
 Write every field in ${outputLanguage}. Do not invent facts that are not supported by the lecture.
 
 Lecture title: ${title}
@@ -51,11 +51,28 @@ ${transcript}
           responseSchema: {
             type: "OBJECT",
             properties: {
-              explanation: { type: "STRING", description: "Clear academic explanation, 2-4 sentences." },
-              simplified: { type: "STRING", description: "Explained simply with an everyday analogy, 2-4 sentences." },
-              keyPoints: { type: "ARRAY", items: { type: "STRING" }, description: "3-6 key points." },
-              terms: { type: "ARRAY", items: { type: "STRING" }, description: "3-8 important terms." },
-              example: { type: "STRING", description: "One short worked example." }
+              explanation: { 
+                type: "STRING", 
+                description: "A comprehensive, detailed academic explanation covering all main topics and concepts of the lecture in 6-10 rich, informative sentences." 
+              },
+              simplified: { 
+                type: "STRING", 
+                description: "A clear, detailed step-by-step breakdown explaining the concepts simply with everyday analogies and examples in 5-8 sentences." 
+              },
+              keyPoints: { 
+                type: "ARRAY", 
+                items: { type: "STRING" }, 
+                description: "6-10 detailed and informative key points capturing the core insights of the lecture." 
+              },
+              terms: { 
+                type: "ARRAY", 
+                items: { type: "STRING" }, 
+                description: "5-12 important terms and definitions mentioned in the lecture." 
+              },
+              example: { 
+                type: "STRING", 
+                description: "A detailed practical example or case study from or consistent with the lecture." 
+              }
             },
             required: ["explanation", "simplified", "keyPoints", "terms", "example"]
           }
