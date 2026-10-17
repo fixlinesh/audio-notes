@@ -1586,18 +1586,21 @@ function LectureSummary({
   } | null>(null);
 
   // Запрос к нашему серверу /api/summarize при загрузке экрана
-  useEffect(() => {
+   useEffect(() => {
     async function fetchSummary() {
       try {
         setLoading(true);
-        // Берем текст лекции или аудио-транскрипт
-        const transcriptText = lecture.title + " " + (lecture.subject || "") + " Лекция"; 
         
+        // Берем РЕАЛЬНЫЙ текст загруженного PDF или аудио!
+        const transcriptText = lecture.transcript && lecture.transcript.trim().length > 20
+          ? lecture.transcript 
+          : `${lecture.title} ${lecture.subject} Лекция`;
+
         const response = await fetch("/api/summarize", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            transcript: transcriptText,
+            transcript: transcriptText, // <--- Настоящий текст уходит в Gemini
             title: lecture.title,
             subject: lecture.subject,
             sourceLanguage: lecture.sourceLanguage,
@@ -1620,7 +1623,8 @@ function LectureSummary({
     }
 
     fetchSummary();
-  }, [language]);
+  }, [lecture, language]);
+
 
   const download = () => {
     setDownloadStatus("Preparing printable summary…");
