@@ -1,61 +1,24 @@
-# Audio Notes — multi-user version
+# Audio Notes
 
-Проект Figma Make с настоящей регистрацией пользователей и хранением аудиофайлов в Supabase.
+React + Vite app: sign up / sign in (Supabase Auth), record a lecture or upload audio/video/PDF, get a transcript and an AI summary (Google Gemini), keep everything in a private per-user library, and chat with an AI teacher about the lecture.
 
-## Что добавлено
+## Setup
 
-- регистрация по email/password;
-- вход и выход;
-- сессия пользователя через Supabase Auth;
-- каждый пользователь имеет отдельные данные;
-- настоящая запись микрофона через MediaRecorder;
-- запись сохраняется в Supabase Storage;
-- загруженные аудио/видео сохраняются в Storage;
-- таблица `lectures` связывает файл с `user_id`;
-- Row Level Security не позволяет пользователю читать чужие записи;
-- существующий `/api/summarize` с Anthropic сохранён.
+1. **Supabase** → SQL Editor → run all of `supabase.sql` (table `recordings`, private bucket `audio`, row-level security).
+2. **Supabase** → Authentication → Providers → Email: for testing you may turn "Confirm email" off.
+3. **Vercel** → Project → Settings → Environment Variables (then redeploy):
 
-## 1. Создать Supabase project
+| Name | Where it is used |
+| --- | --- |
+| `VITE_SUPABASE_URL` | browser + API |
+| `VITE_SUPABASE_ANON_KEY` | browser + API |
+| `GEMINI_API_KEY` | API only (never `VITE_`) |
+| `GEMINI_MODEL` | optional, default `gemini-3.5-flash-lite` |
 
-Откройте https://supabase.com/ и создайте проект.
+Local: copy `.env.example` to `.env`, `npm install`, `npm run dev` (the `/api` routes need `vercel dev` or a deployed project).
 
-В Supabase откройте **SQL Editor** и выполните весь файл `supabase.sql` из этого проекта.
+## How it works
 
-Затем в **Project Settings → API** возьмите:
-
-- Project URL
-- anon/public key
-
-## 2. Настроить `.env`
-
-Скопируйте `.env.example` в `.env` и заполните:
-
-```env
-VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
-VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
-ANTHROPIC_API_KEY=YOUR_ANTHROPIC_KEY
-ANTHROPIC_MODEL=claude-sonnet-5-5
-```
-
-`VITE_*` значения являются публичными и предназначены для браузера. `ANTHROPIC_API_KEY` нельзя публиковать в клиентском коде; на Vercel он задаётся как server environment variable.
-
-## 3. Установка и запуск
-
-```bash
-npm install
-npm run dev
-```
-
-После этого откройте адрес Vite, например `http://localhost:5173`.
-
-## 4. Email confirmation
-
-В Supabase: **Authentication → Providers → Email**.
-
-Для учебного/тестового запуска можно отключить подтверждение email. Для реального сайта лучше оставить подтверждение включённым и настроить SMTP/почту.
-
-## 5. Публикация
-
-Проект удобно разместить на Vercel. Добавьте туда все переменные окружения из `.env` (секрет Anthropic — только в server environment), а затем задеплойте проект.
-
-После публикации любой человек получает одну ссылку, регистрируется своим email/password и получает собственный аккаунт.
+- `src/lib/supabase.ts` — Supabase client, upload + save (`saveMedia`), list/delete, `authFetch` (sends the user's token to `/api`).
+- `api/summarize.ts`, `api/transcribe.ts`, `api/chat.ts` — Gemini calls. They reject requests without a valid Supabase session.
+- Transcript sources: browser live transcription while recording, PDF text, or server speech-to-text for uploaded audio (files up to ~14 MB).
