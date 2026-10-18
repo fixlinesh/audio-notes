@@ -9,7 +9,18 @@ import {
   useRef,
   useState,
 } from "react";
-import { supabase, saveRecording } from "./lib/supabase";
+import {
+  supabase,
+  saveMedia,
+  createLectureRow,
+  updateRecording,
+  listRecordings,
+  getSignedAudioUrl,
+  deleteRecording,
+  authFetch,
+  type RecordingRow,
+} from "./lib/supabase";
+import type { SummaryData } from "./summarize";
 import * as pdfjsLib from 'pdfjs-dist';
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
@@ -36,7 +47,8 @@ type Screen =
   | "summary"
   | "notes"
   | "tests"
-  | "teacher";
+  | "teacher"
+  | "library";
 type Language = "English" | "Russian" | "Kazakh";
 type Lecture = {
   title: string;
@@ -52,6 +64,10 @@ type Lecture = {
   audioUrl?: string;
   audioDuration?: number;
   audioMimeType?: string;
+  recordingId?: string;
+  storagePath?: string;
+  summary?: SummaryData;
+  summaryLanguage?: Language;
 };
 type IconName =
   | "arrow"
@@ -298,6 +314,7 @@ function BackButton({ onClick, label = "Back" }: { onClick: () => void; label?: 
 const nav: { screen: Screen; label: string; icon: IconName }[] = [
   { screen: "home", label: "Home", icon: "home" },
   { screen: "record", label: "Record", icon: "mic" },
+  { screen: "library", label: "Library", icon: "wave" },
   { screen: "notes", label: "Notes", icon: "book" },
   { screen: "tests", label: "Tests", icon: "test" },
   { screen: "teacher", label: "AI Teacher", icon: "brain" },
@@ -352,6 +369,10 @@ function Home({
   const [panel, setPanel] = useState<"search" | "profile" | "schedule" | null>(null);
   const [query, setQuery] = useState("");
   const [profileFeedback, setProfileFeedback] = useState("");
+  const [userName, setUserName] = useState("");
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUserName(data.user?.email?.split("@")[0] ?? ""));
+  }, []);
   const searchableItems = [
     { title: "Graph Algorithms", detail: "Notes · CS101", screen: "notes" as Screen },
     { title: "Practice Quizzes", detail: "3 pending", screen: "tests" as Screen },
@@ -365,8 +386,8 @@ function Home({
   return (
     <div className="page-enter px-5">
       <TopBar
-        subtitle="Wednesday, October 16"
-        title="Hello, Zhibek!"
+        subtitle={new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
+        title={userName ? `Hello, ${userName}!` : "Hello!"}
         action={
           <div className="flex items-center gap-2">
             <Button
@@ -624,8 +645,8 @@ function Recording({
   onRecordingContinue,
   onUploadReady,
 }: {
-  onRecordingContinue: (audio: { blob: Blob; duration: number; mimeType: string }) => void;
-  onUploadReady: (sourceFile: string) => void;
+  onRecordingContinue: (audio: { blob: Blob; duration: number; mimeType: string; transcript: string }) => void;
+  onUploadReady: (sourceFile: string, file?: File) => void;
 }) {
   const [recordingState, setRecordingState] = useState<RecorderState>("idle");
   const [elapsed, setElapsed] = useState(0);
@@ -966,22 +987,8 @@ function Recording({
     return `${String(Math.floor(safeSeconds / 60)).padStart(2, "0")}:${String(safeSeconds % 60).padStart(2, "0")}`;
   };
 
-   const selectFile = async (file?: File) => {
-    if (!file) return;
-    setSelectedFile(file);
-
-    // Если загружен PDF-файл, извлекаем из него текст
-    if (file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf') {
-      try {
-        const text = await extractTextFromPDF(file);
-        setPendingLecture((prev) => ({
-          ...prev,
-          transcript: text,
-        }));
-      } catch (err) {
-        console.error("Ошибка при чтении PDF:", err);
-      }
-    }
+  const selectFile = (file?: File) => {
+    if (file) setSelectedFile(file);
   };
 
   const fileSize = selectedFile
@@ -1067,6 +1074,7 @@ function Recording({
                   blob: recordedBlob,
                   duration: recordedDuration,
                   mimeType: recordedBlob.type,
+                  transcript: transcript.trim(),
                 })
               }
             >
@@ -1359,7 +1367,7 @@ function Recording({
             <Button
               className="rounded-xl bg-gradient-to-r from-accent to-purple py-4 text-sm font-bold text-white disabled:opacity-40"
               disabled={!selectedFile}
-              onClick={() => selectedFile && onUploadReady(selectedFile.name)}
+              onClick={() => selectedFile && onUploadReady(selectedFile.name, selectedFile)}
             >
               Continue
             </Button>
@@ -1452,20 +1460,14 @@ function LectureInformation({
   );
 }
 
-const processingStages = [
-  "Uploading",
-  "Transcribing",
-  "Summarizing",
-  "Translating",
-  "Generating Notes",
-  "Completed",
-];
+const processingStages = ["Uploading", "Transcribing", "Completed"];
 
 function Processing({
   lecture,
   initiallyComplete,
   onBack,
   onComplete,
+  onLectureUpdate,
   navigate,
   openTests,
 }: {
@@ -1473,19 +1475,82 @@ function Processing({
   initiallyComplete: boolean;
   onBack: () => void;
   onComplete: () => void;
+  onLectureUpdate: (patch: Partial<Lecture>) => void;
   navigate: (screen: Screen) => void;
   openTests: (mode: "quiz" | "cards") => void;
 }) {
   const [stage, setStage] = useState(initiallyComplete ? processingStages.length : 0);
+  const [error, setError] = useState("");
+  const [warning, setWarning] = useState("");
+  const [attempt, setAttempt] = useState(0);
+  const lectureRef = useRef(lecture);
+  lectureRef.current = lecture;
+  const ranFor = useRef(-1);
 
   useEffect(() => {
-    if (stage >= processingStages.length) {
-      onComplete();
-      return;
-    }
-    const timer = window.setTimeout(() => setStage((value) => value + 1), 700);
-    return () => window.clearTimeout(timer);
-  }, [stage, onComplete]);
+    if (initiallyComplete || ranFor.current === attempt) return;
+    ranFor.current = attempt;
+
+    (async () => {
+      setError("");
+      setWarning("");
+      setStage(0);
+      let current = lectureRef.current;
+      try {
+        // 1. Save the file (or the text) to the user's account.
+        if (current.audioBlob && !current.recordingId) {
+          const saved = await saveMedia(current.audioBlob, {
+            title: current.title,
+            duration: current.audioDuration,
+            mimeType: current.audioMimeType,
+            fileName: current.sourceType === "upload" ? current.sourceFile : undefined,
+          });
+          if (saved.row) {
+            current = { ...current, recordingId: saved.row.id, storagePath: saved.row.audio_path ?? undefined };
+            onLectureUpdate({ recordingId: current.recordingId, storagePath: current.storagePath });
+          } else {
+            setWarning(saved.error ?? "The file could not be saved to your account.");
+          }
+        } else if (!current.audioBlob && !current.recordingId && (current.transcript ?? "").trim()) {
+          const saved = await createLectureRow({ title: current.title, transcript: current.transcript });
+          if (saved.row) {
+            current = { ...current, recordingId: saved.row.id };
+            onLectureUpdate({ recordingId: saved.row.id });
+          } else {
+            setWarning(saved.error ?? "The lecture could not be saved to your account.");
+          }
+        }
+
+        // 2. Get a transcript: live browser transcript / PDF text, otherwise server speech-to-text.
+        setStage(1);
+        let transcript = (current.transcript ?? "").trim();
+        if (!transcript && current.storagePath) {
+          const response = await authFetch("/api/transcribe", {
+            path: current.storagePath,
+            language: current.sourceLanguage,
+          });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(data.error ?? `Transcription failed (${response.status})`);
+          transcript = String(data.transcript ?? "").trim();
+        }
+        if (transcript.length < 20) {
+          throw new Error(
+            current.storagePath
+              ? "No speech could be recognised in this file."
+              : "There is no transcript to work with. Record with live transcription on, or upload a PDF or an audio file.",
+          );
+        }
+        onLectureUpdate({ transcript });
+        if (current.recordingId) await updateRecording(current.recordingId, { transcript, title: current.title });
+
+        setStage(processingStages.length);
+        onComplete();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Processing failed.");
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attempt]);
 
   const ready = stage >= processingStages.length;
   const progress = Math.min(100, Math.round((stage / processingStages.length) * 100));
@@ -1508,14 +1573,25 @@ function Processing({
             style={{ width: `${progress}%` }}
           />
         </div>
-        <p className="mt-3 text-xs leading-5 text-copy-dim">
-          Prototype simulation: your recorded audio stays in this browser. Transcription, translation, and AI generation are demonstrated locally.
-        </p>
+        {warning && (
+          <p className="mt-3 rounded-xl border border-red/30 bg-red/10 p-3 text-xs leading-5 text-red">{warning}</p>
+        )}
+        {error && (
+          <div className="mt-3 rounded-xl border border-red/30 bg-red/10 p-3 text-xs leading-5 text-red">
+            {error}
+            <Button
+              className="mt-3 block rounded-lg bg-accent px-4 py-2 text-xs font-bold text-white"
+              onClick={() => setAttempt((value) => value + 1)}
+            >
+              Try again
+            </Button>
+          </div>
+        )}
 
         <div className="mt-6 space-y-1">
           {processingStages.map((item, index) => {
             const completed = index < stage;
-            const active = index === stage;
+            const active = index === stage && !error;
             return (
               <div className="relative flex items-center gap-4 py-3" key={item}>
                 {index < processingStages.length - 1 && (
@@ -1598,45 +1674,52 @@ function LectureSummary({
     example: string;
   } | null>(null);
 
-  // Запрос к нашему серверу /api/summarize при загрузке экрана
-   useEffect(() => {
+  const [attempt, setAttempt] = useState(0);
+
+  // Summary comes from our /api/summarize (Gemini); it is cached in the lecture and saved to the account.
+  useEffect(() => {
     async function fetchSummary() {
       try {
+        setError("");
         setLoading(true);
-        
-        // Берем РЕАЛЬНЫЙ текст загруженного PDF или аудио!
-        const transcriptText = lecture.transcript && lecture.transcript.trim().length > 20
-          ? lecture.transcript 
-          : `${lecture.title} ${lecture.subject} Лекция`;
 
-        const response = await fetch("/api/summarize", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            transcript: transcriptText, // <--- Настоящий текст уходит в Gemini
-            title: lecture.title,
-            subject: lecture.subject,
-            sourceLanguage: lecture.sourceLanguage,
-            outputLanguage: language,
-          }),
+        if (lecture.summary && lecture.summaryLanguage === language) {
+          setSummaryData(lecture.summary);
+          return;
+        }
+
+        const transcriptText = (lecture.transcript ?? "").trim();
+        if (transcriptText.length < 20) {
+          throw new Error("There is no transcript for this lecture yet. Record with live transcription on, or upload a PDF or an audio file.");
+        }
+
+        const response = await authFetch("/api/summarize", {
+          transcript: transcriptText,
+          title: lecture.title,
+          subject: lecture.subject,
+          sourceLanguage: lecture.sourceLanguage,
+          outputLanguage: language,
         });
 
         if (!response.ok) {
           const errData = await response.json().catch(() => ({}));
-          throw new Error(errData.error || "Не удалось получить ответ от ИИ");
+          throw new Error(errData.error || `Request failed (${response.status})`);
         }
 
-        const data = await response.json();
+        const data = (await response.json()) as SummaryData;
         setSummaryData(data);
+        if (lecture.recordingId) {
+          void updateRecording(lecture.recordingId, { summary: JSON.stringify({ language, data }) });
+        }
       } catch (err: any) {
-        setError(err.message || "Ошибка подключения к ИИ");
+        setError(err.message || "Could not reach the AI service.");
       } finally {
         setLoading(false);
       }
     }
 
-    fetchSummary();
-  }, [lecture, language]);
+    void fetchSummary();
+  }, [lecture, language, attempt]);
 
 
   const download = () => {
@@ -1666,7 +1749,7 @@ function LectureSummary({
         <BackButton label="Back to Processing" onClick={onBack} />
         <div className="mt-10 text-red-400">
           <p className="text-lg">❌ Ошибка: {error}</p>
-          <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 bg-blue-600 rounded text-white">
+          <button onClick={() => setAttempt((value) => value + 1)} className="mt-4 px-4 py-2 bg-blue-600 rounded text-white">
             Повторить попытку
           </button>
         </div>
@@ -2262,42 +2345,38 @@ function Tests({
 function Teacher({ lecture, onBack }: { lecture: Lecture; onBack: () => void }) {
   const [voice, setVoice] = useState(false);
   const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState([
-    { role: "user", text: "Why can’t Dijkstra’s algorithm work with negative weights?" },
-    {
-      role: "assistant",
-      text: "Think of it like choosing the nearest city on a map. Once Dijkstra finalizes a path, it assumes no future route can make it cheaper. A negative edge breaks that assumption because a later route could reduce the total.",
-    },
+  const [messages, setMessages] = useState<{ role: string; text: string }[]>([
+    { role: "assistant", text: `Hi! Ask me anything about “${lecture.title}”.` },
   ]);
   const [replying, setReplying] = useState(false);
   const [listening, setListening] = useState(false);
   const [voiceCallActive, setVoiceCallActive] = useState(false);
   const [callSeconds, setCallSeconds] = useState(0);
 
-  const sendMessage = (text: string) => {
+  const sendMessage = async (text: string) => {
     const userMessage = text.trim();
     if (!userMessage || replying) return;
+    const history = messages;
     setMessages((current) => [...current, { role: "user", text: userMessage }]);
     setMessage("");
     setReplying(true);
-    window.setTimeout(() => {
-      const normalized = userMessage.toLowerCase();
-      const response = normalized.includes("quiz")
-        ? `Quick check on ${lecture.title}: why must edge weights be non-negative for Dijkstra’s algorithm?`
-        : normalized.includes("term")
-          ? "The important terms are relaxation, priority queue, weighted graph, and greedy strategy. Relaxation improves distances, while the priority queue selects the closest unvisited node."
-          : normalized.includes("simpler")
-            ? "Think of Dijkstra as expanding a travel map from your starting point. Always visit the closest reachable place next, then update nearby routes if you find a shortcut."
-            : normalized.includes("example")
-        ? "Imagine routes A→B costs 5, while A→C costs 7 and C→B costs −4. Dijkstra may finalize B at 5 before discovering that A→C→B actually costs 3."
-        : normalized.includes("complex") || normalized.includes("fast")
-          ? "With a binary-heap priority queue, Dijkstra’s time complexity is O((V + E) log V). The queue keeps selection of the next closest node efficient."
-            : normalized.includes("relax")
-              ? "Relaxation checks whether going through the current node creates a shorter route: dist[v] = min(dist[v], dist[u] + w)."
-            : `Based on ${lecture.title}, focus on three ideas: non-negative weights, repeatedly choosing the nearest unvisited node, and relaxing its outgoing edges.`;
-      setMessages((current) => [...current, { role: "assistant", text: response }]);
+    try {
+      const response = await authFetch("/api/chat", {
+        question: userMessage,
+        history,
+        title: lecture.title,
+        transcript: lecture.transcript ?? "",
+        language: lecture.outputLanguage,
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error ?? `Request failed (${response.status})`);
+      setMessages((current) => [...current, { role: "assistant", text: String(data.answer) }]);
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : "The AI teacher is unavailable.";
+      setMessages((current) => [...current, { role: "assistant", text: `⚠ ${reason}` }]);
+    } finally {
       setReplying(false);
-    }, 700);
+    }
   };
 
   const submit = () => sendMessage(message);
@@ -2482,6 +2561,95 @@ const defaultLecture: Lecture = {
   sourceType: "recording",
 };
 
+function Library({ onOpen }: { onOpen: (row: RecordingRow) => Promise<void> }) {
+  const [rows, setRows] = useState<RecordingRow[] | null>(null);
+  const [error, setError] = useState("");
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const load = async () => {
+    try {
+      setError("");
+      setRows(await listRecordings());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not load your recordings.");
+      setRows([]);
+    }
+  };
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  const open = async (row: RecordingRow) => {
+    setBusyId(row.id);
+    try {
+      await onOpen(row);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const remove = async (row: RecordingRow) => {
+    if (!window.confirm(`Delete “${row.title ?? "recording"}”? This cannot be undone.`)) return;
+    setBusyId(row.id);
+    try {
+      await deleteRecording(row);
+      setRows((current) => current?.filter((item) => item.id !== row.id) ?? null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not delete the recording.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const length = (seconds: number | null) =>
+    seconds == null ? "" : `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+
+  return (
+    <div className="page-enter px-5">
+      <TopBar subtitle="Only you can see these" title="My Library" />
+      {error && (
+        <p className="mb-4 rounded-xl border border-red/30 bg-red/10 p-3 text-xs leading-5 text-red">{error}</p>
+      )}
+      {rows === null && <p className="text-sm text-copy-muted">Loading…</p>}
+      {rows?.length === 0 && !error && (
+        <p className="rounded-card border border-line bg-card p-5 text-sm leading-6 text-copy-muted">
+          No lectures yet. Record or upload one and it will appear here.
+        </p>
+      )}
+      <div className="space-y-3">
+        {rows?.map((row) => (
+          <section className="rounded-card border border-line bg-card p-4" key={row.id}>
+            <div className="text-sm font-bold text-white">{row.title ?? "Untitled"}</div>
+            <div className="mt-1 text-xs text-copy-muted">
+              {row.created_at ? new Date(row.created_at).toLocaleString() : ""}
+              {row.duration != null ? ` · ${length(row.duration)}` : ""}
+              {row.transcript ? " · transcript" : ""}
+              {row.summary ? " · summary" : ""}
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <Button
+                className="rounded-xl bg-accent py-3 text-xs font-bold text-white disabled:opacity-50"
+                disabled={busyId === row.id}
+                onClick={() => open(row)}
+              >
+                Open
+              </Button>
+              <Button
+                className="rounded-xl border border-red/25 bg-red/10 py-3 text-xs font-bold text-red disabled:opacity-50"
+                disabled={busyId === row.id}
+                onClick={() => remove(row)}
+              >
+                Delete
+              </Button>
+            </div>
+          </section>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [screen, setScreen] = useState<Screen>("home");
   const [selectedLecture, setSelectedLecture] = useState<Lecture>(defaultLecture);
@@ -2512,18 +2680,23 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const updateLecture = (patch: Partial<Lecture>) =>
+    setSelectedLecture((current) => ({ ...current, ...patch }));
+
   const beginLectureInformation = async (sourceType: "recording" | "upload", sourceFile: string, fileObj?: File) => {
+    const isPdf = !!fileObj && (fileObj.name.toLowerCase().endsWith(".pdf") || fileObj.type === "application/pdf");
     let fileTranscript = "";
-    
-    // Если пользователь загрузил PDF, читаем его текст прямо здесь
-    if (fileObj && (fileObj.name.toLowerCase().endsWith('.pdf') || fileObj.type === 'application/pdf')) {
+
+    // A PDF has no audio: its text is the lecture text.
+    if (fileObj && isPdf) {
       try {
         fileTranscript = await extractTextFromPDF(fileObj);
       } catch (e) {
-        console.error("Ошибка при чтении PDF в beginLectureInformation:", e);
+        console.error("Could not read the PDF:", e);
       }
     }
 
+    const media = fileObj && !isPdf ? fileObj : undefined;
     setSelectedLecture({
       title: sourceFile ? sourceFile.replace(/\.[^/.]+$/, "") : "Uploaded Lecture",
       subject: "General Subject",
@@ -2533,26 +2706,78 @@ export default function App() {
       outputLanguage: "Kazakh",
       sourceType,
       sourceFile,
-      transcript: fileTranscript, // <--- Сюда записывается реальный текст из PDF!
+      transcript: fileTranscript,
+      audioBlob: media,
+      audioUrl: media ? URL.createObjectURL(media) : undefined,
+      audioMimeType: media?.type,
     });
+    setProcessed(false);
     setScreen("lecture-info");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const continueRecordedLecture = (audio: { blob: Blob; duration: number; mimeType: string }) => {
-    const audioUrl = URL.createObjectURL(audio.blob);
-    void saveRecording(audio.blob, audio.duration, audio.mimeType, `Lecture ${new Date().toLocaleString()}`);
-    setSelectedLecture((current) => ({
-      ...current,
+  const continueRecordedLecture = (audio: { blob: Blob; duration: number; mimeType: string; transcript: string }) => {
+    setSelectedLecture({
+      title: `Lecture ${new Date().toLocaleDateString()}`,
+      subject: "General Subject",
+      professor: "AI Assistant",
+      date: new Date().toISOString().split("T")[0],
+      sourceLanguage: "English",
+      outputLanguage: "Kazakh",
       sourceType: "recording",
       sourceFile: "Lecture Recording",
+      transcript: audio.transcript,
       audioBlob: audio.blob,
-      audioUrl,
+      audioUrl: URL.createObjectURL(audio.blob),
       audioDuration: audio.duration,
       audioMimeType: audio.mimeType,
-    }));
+    });
+    setProcessed(false);
+    setScreen("lecture-info");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const startProcessing = (lecture: Lecture) => {
+    setSelectedLecture(lecture);
     setProcessed(false);
     setScreen("processing");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const openRecording = async (row: RecordingRow) => {
+    let saved: { language?: Language; data?: SummaryData } | null = null;
+    try {
+      saved = row.summary ? JSON.parse(row.summary) : null;
+    } catch {
+      saved = null;
+    }
+    let audioUrl: string | undefined;
+    if (row.audio_path) {
+      try {
+        audioUrl = await getSignedAudioUrl(row.audio_path);
+      } catch {
+        audioUrl = undefined;
+      }
+    }
+    setSelectedLecture({
+      title: row.title ?? "Recording",
+      subject: "General Subject",
+      professor: "AI Assistant",
+      date: (row.created_at ?? new Date().toISOString()).split("T")[0],
+      sourceLanguage: "English",
+      outputLanguage: saved?.language ?? "Kazakh",
+      sourceType: "recording",
+      sourceFile: row.title ?? "Recording",
+      transcript: row.transcript ?? "",
+      audioUrl,
+      audioDuration: row.duration ?? undefined,
+      recordingId: row.id,
+      storagePath: row.audio_path ?? undefined,
+      summary: saved?.data,
+      summaryLanguage: saved?.language,
+    });
+    setProcessed(true);
+    setScreen("summary");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -2577,6 +2802,7 @@ export default function App() {
             navigate={navigate}
             onBack={() => navigate("lecture-info")}
             onComplete={() => setProcessed(true)}
+            onLectureUpdate={updateLecture}
             openTests={openTests}
           />
         )}
@@ -2599,6 +2825,7 @@ export default function App() {
             onBack={() => navigate("summary")}
           />
         )}
+        {screen === "library" && <Library onOpen={openRecording} />}
         {screen === "teacher" && <Teacher lecture={selectedLecture} onBack={() => navigate("summary")} />}
         <BottomNav onNavigate={navigate} screen={screen} />
       </div>
