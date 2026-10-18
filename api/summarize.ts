@@ -1,13 +1,12 @@
-// Serverless function (Vercel) for Google Gemini
-const MODEL = "gemini-3.5-flash-lite";
+// Serverless function (Vercel): lecture summary via Google Gemini. Requires a signed-in user.
+import { callGemini, geminiKey, json, requireUser } from "./_lib";
+
 const MAX_TRANSCRIPT_CHARS = 60_000;
 
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
-
 export async function POST(request: Request) {
-  const apiKey = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
-  if (!apiKey) return json({ error: "Server is missing Gemini API key." }, 500);
+  if (!geminiKey()) return json({ error: "Server is missing GEMINI_API_KEY." }, 500);
+  const auth = await requireUser(request);
+  if (!auth) return json({ error: "Please sign in again." }, 401);
 
   let body: Record<string, unknown>;
   try {
@@ -39,16 +38,9 @@ ${transcript}
 </transcript>
 `;
 
-  const upstream = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          responseMimeType: "application/json",
-          responseSchema: {
+  const result = await callGemini([{ text: prompt }], {
+    responseMimeType: "application/json",
+    responseSchema: {
             type: "OBJECT",
             properties: {
               explanation: { 
@@ -75,26 +67,13 @@ ${transcript}
               }
             },
             required: ["explanation", "simplified", "keyPoints", "terms", "example"]
-          }
-        }
-      }),
-    }
-  );
-
-  if (!upstream.ok) {
-    console.error("Gemini API error", upstream.status, await upstream.text());
-    return json({ error: "The AI service failed. Please try again." }, 502);
-  }
-
-  const data = await upstream.json();
-  const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  
-  if (!textResponse) return json({ error: "The AI returned an unexpected response." }, 502);
+          }        });
+  if (result.error) return json({ error: result.error }, 502);
 
   try {
-    const parsed = JSON.parse(textResponse);
-    return json(parsed);
+    return json(JSON.parse(result.text as string));
   } catch {
     return json({ error: "Failed to parse AI response." }, 502);
   }
 }
+
