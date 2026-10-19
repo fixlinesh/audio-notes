@@ -13,6 +13,7 @@ export type RecordingRow = {
   audio_path: string | null;
   transcript: string | null;
   summary: string | null;
+  study: string | null;
   duration: number | null;
   created_at: string | null;
 };
@@ -62,7 +63,7 @@ export async function saveMedia(
 
 export async function updateRecording(
   id: string,
-  patch: Partial<Pick<RecordingRow, "title" | "transcript" | "summary">>,
+  patch: Partial<Pick<RecordingRow, "title" | "transcript" | "summary" | "study">>,
 ) {
   const { error } = await supabase.from("recordings").update(patch).eq("id", id);
   if (error) console.error("Update failed", error);
