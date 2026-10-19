@@ -8,6 +8,7 @@ create table if not exists public.recordings (
   audio_path  text,
   transcript  text,
   summary     text,
+  study       text,
   duration    integer,
   created_at  timestamptz default now()
 );
@@ -27,3 +28,6 @@ create policy "own audio" on storage.objects
   for all to authenticated
   using (bucket_id = 'audio' and (storage.foldername(name))[1] = auth.uid()::text)
   with check (bucket_id = 'audio' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- If the table already existed before the tests feature:
+alter table public.recordings add column if not exists study text;
