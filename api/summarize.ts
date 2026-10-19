@@ -1,5 +1,5 @@
 // Serverless function (Vercel): lecture summary via Google Gemini. Requires a signed-in user.
-import { callGemini, geminiKey, json, requireUser } from "./_lib";
+import { callGemini, geminiKey, json, requireUser } from "./_lib.js";
 
 const MAX_TRANSCRIPT_CHARS = 60_000;
 

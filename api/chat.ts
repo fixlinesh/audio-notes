@@ -1,5 +1,5 @@
 // Serverless function (Vercel): "AI Teacher" chat grounded in the lecture transcript.
-import { callGemini, geminiKey, json, requireUser } from "./_lib";
+import { callGemini, geminiKey, json, requireUser } from "./_lib.js";
 
 export async function POST(request: Request) {
   if (!geminiKey()) return json({ error: "Server is missing GEMINI_API_KEY." }, 500);

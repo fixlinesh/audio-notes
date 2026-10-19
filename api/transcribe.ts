@@ -3,7 +3,7 @@
 // token (so Storage RLS applies) and send it to Gemini. Vercel limits request bodies to ~4.5 MB,
 // which is why the file is not posted to this function directly.
 import { Buffer } from "node:buffer";
-import { callGemini, geminiKey, json, requireUser } from "./_lib";
+import { callGemini, geminiKey, json, requireUser } from "./_lib.js";
 
 const MAX_BYTES = 14 * 1024 * 1024; // base64 inflates by ~33%; Gemini inline limit is ~20 MB
 
