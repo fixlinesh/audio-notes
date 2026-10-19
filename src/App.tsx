@@ -50,6 +50,8 @@ type Screen =
   | "teacher"
   | "library";
 type Language = "English" | "Russian" | "Kazakh";
+type QuizQuestion = { question: string; answers: string[]; correct: number; explanation: string };
+type StudyData = { quiz: QuizQuestion[]; flashcards: { term: string; definition: string }[] };
 type Lecture = {
   title: string;
   subject: string;
@@ -68,6 +70,8 @@ type Lecture = {
   storagePath?: string;
   summary?: SummaryData;
   summaryLanguage?: Language;
+  study?: StudyData;
+  studyLanguage?: Language;
 };
 type IconName =
   | "arrow"
@@ -2038,49 +2042,62 @@ function Notes({
   );
 }
 
-const quizSets = [
-  { title: "Graph Algorithms", meta: "CS101 · 3 questions", score: "85% Mastery", progress: 80, complete: "Ready to continue" },
-  { title: "Sorting & Complexity", meta: "CS101 · 3 questions", score: "72% Mastery", progress: 50, complete: "New practice set" },
-  { title: "Linear Algebra", meta: "Math · 3 questions", score: "New", progress: 16, complete: "Start your first attempt" },
-];
-
-const quizQuestions = [
-  {
-    question: "What condition must hold for Dijkstra’s algorithm to work correctly?",
-    answers: ["All edge weights are non-negative", "The graph has no cycles", "Every node has two edges", "The graph is unweighted"],
-    correct: 0,
-    explanation: "Negative edges can make a previously finalized shortest path cheaper later.",
-  },
-  {
-    question: "Which structure efficiently selects the next closest unvisited node?",
-    answers: ["Stack", "Priority queue", "Hash set", "Linked list"],
-    correct: 1,
-    explanation: "A priority queue returns the node with the smallest known distance.",
-  },
-  {
-    question: "What does edge relaxation do?",
-    answers: ["Deletes heavy edges", "Adds a new vertex", "Improves a known distance", "Sorts all vertices"],
-    correct: 2,
-    explanation: "Relaxation updates a distance when a shorter route is discovered.",
-  },
-];
-
-const flashcards = [
-  ["Dijkstra Algorithm", "Finds the shortest path from one source node to all other nodes in a weighted graph."],
-  ["Relaxation", "Updates a vertex distance when a shorter path is discovered through another node."],
-  ["Priority Queue", "Returns the unvisited node with the smallest currently known distance."],
-  ["Weighted Graph", "A graph whose edges represent costs such as distance, time, or price."],
-];
-
 function Tests({
   initialMode,
   lecture,
   onBack,
+  onLectureUpdate,
 }: {
   initialMode: "quiz" | "cards";
   lecture: Lecture;
   onBack: () => void;
+  onLectureUpdate: (patch: Partial<Lecture>) => void;
 }) {
+  const [study, setStudy] = useState<StudyData | null>(
+    lecture.study && lecture.studyLanguage === lecture.outputLanguage ? lecture.study : null,
+  );
+  const [studyLoading, setStudyLoading] = useState(false);
+  const [studyError, setStudyError] = useState("");
+  const quizQuestions = study?.quiz ?? [];
+  const flashcards = (study?.flashcards ?? []).map((card) => [card.term, card.definition]);
+
+  const generateStudy = async () => {
+    setStudyLoading(true);
+    setStudyError("");
+    try {
+      const transcript = (lecture.transcript ?? "").trim();
+      if (transcript.length < 20) {
+        throw new Error("There is no transcript for this lecture yet, so a test cannot be made.");
+      }
+      const response = await authFetch("/api/study", {
+        transcript,
+        title: lecture.title,
+        language: lecture.outputLanguage,
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error ?? `Request failed (${response.status})`);
+      const result = data as StudyData;
+      setStudy(result);
+      setCardIndex(0);
+      setDeckComplete(false);
+      setActiveQuiz(null);
+      onLectureUpdate({ study: result, studyLanguage: lecture.outputLanguage });
+      if (lecture.recordingId) {
+        void updateRecording(lecture.recordingId, {
+          study: JSON.stringify({ language: lecture.outputLanguage, data: result }),
+        });
+      }
+    } catch (err) {
+      setStudyError(err instanceof Error ? err.message : "Could not create the test.");
+    } finally {
+      setStudyLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!study) void generateStudy();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [tab, setTab] = useState<"quiz" | "cards">(initialMode);
   const [activeQuiz, setActiveQuiz] = useState<string | null>(null);
   const [questionIndex, setQuestionIndex] = useState(0);
@@ -2169,43 +2186,43 @@ function Tests({
         </Button>
       </div>
 
-      {tab === "quiz" && !activeQuiz && (
-        <div className="mt-6 space-y-4">
-          {quizSets.map(({ title, meta, score, progress, complete }, index) => {
-            const quizTitle = index === 0 ? lecture.title : title;
-            return (
-            <Button
-              className="w-full rounded-card border border-line bg-card p-5 text-left transition hover:border-accent/50"
-              key={quizTitle}
-              onClick={() => startQuiz(quizTitle)}
-            >
-              <span className="flex items-start justify-between gap-3">
-                <span>
-                  <span className="block text-sm font-bold text-white">{quizTitle}</span>
-                  <span className="mt-1 block text-xs text-copy-muted">{meta}</span>
-                </span>
-                <span className={`rounded-full px-2.5 py-1 text-mini font-bold ${
-                  score === "New" ? "bg-purple/15 text-purple-light" : "bg-green/10 text-green"
-                }`}>
-                  {score}
-                </span>
-              </span>
-              <span className="mt-5 block h-1.5 overflow-hidden rounded-full bg-elevated">
-                <span className="block h-full rounded-full bg-gradient-to-r from-accent to-purple" style={{ width: `${progress}%` }} />
-              </span>
-              <span className="mt-2 flex items-center justify-between text-mini text-copy-dim">
-                <span>{complete}</span>
-                <span className="flex items-center gap-1 text-accent-bright">
-                  Open quiz <Icon name="arrow" className="size-3" />
-                </span>
-              </span>
-            </Button>
-            );
-          })}
+      {studyLoading && (
+        <p className="mt-6 rounded-card border border-line bg-card p-5 text-sm text-copy-muted">
+          Creating questions and flashcards from your lecture…
+        </p>
+      )}
+      {studyError && !studyLoading && (
+        <div className="mt-6 rounded-xl border border-red/30 bg-red/10 p-4 text-xs leading-5 text-red">
+          {studyError}
+          <Button className="mt-3 block rounded-lg bg-accent px-4 py-2 text-xs font-bold text-white" onClick={generateStudy}>
+            Try again
+          </Button>
         </div>
       )}
 
-      {tab === "quiz" && activeQuiz && !quizComplete && (
+      {tab === "quiz" && !activeQuiz && study && quizQuestions.length > 0 && (
+        <div className="mt-6 space-y-4">
+          <Button
+            className="w-full rounded-card border border-line bg-card p-5 text-left transition hover:border-accent/50"
+            onClick={() => startQuiz(lecture.title)}
+          >
+            <span className="block text-sm font-bold text-white">{lecture.title}</span>
+            <span className="mt-1 block text-xs text-copy-muted">{quizQuestions.length} questions from your lecture</span>
+            <span className="mt-4 flex items-center gap-1 text-mini text-accent-bright">
+              Start quiz <Icon name="arrow" className="size-3" />
+            </span>
+          </Button>
+          <Button
+            className="w-full rounded-xl border border-line py-3 text-xs font-bold text-copy-muted disabled:opacity-50"
+            disabled={studyLoading}
+            onClick={generateStudy}
+          >
+            Create a new set of questions
+          </Button>
+        </div>
+      )}
+
+      {tab === "quiz" && activeQuiz && !quizComplete && quizQuestions.length > 0 && (
         <div className="mt-6">
           <Button className="mb-4 flex items-center gap-2 text-xs font-bold text-accent-bright" onClick={() => setActiveQuiz(null)}>
             <Icon name="arrow" className="size-3 rotate-180" /> Back to quizzes
@@ -2270,7 +2287,7 @@ function Tests({
           <p className="mt-2 text-sm text-copy-muted">
             You answered {quizScore} of {quizQuestions.length} questions correctly.
           </p>
-          <Button className="mt-6 w-full rounded-xl bg-accent py-4 text-sm font-bold text-white" onClick={() => startQuiz(activeQuiz ?? "Graph Algorithms")}>
+          <Button className="mt-6 w-full rounded-xl bg-accent py-4 text-sm font-bold text-white" onClick={() => startQuiz(activeQuiz ?? lecture.title)}>
             Try Again
           </Button>
           <Button className="mt-3 w-full rounded-xl border border-line py-4 text-sm font-bold text-copy-muted" onClick={() => setActiveQuiz(null)}>
@@ -2279,7 +2296,7 @@ function Tests({
         </section>
       )}
 
-      {tab === "cards" && !deckComplete && (
+      {tab === "cards" && !deckComplete && flashcards.length > 0 && (
         <div className="mt-6">
           <div className="mb-3 flex items-center justify-between text-xs text-copy-muted">
             <span>{lecture.title}</span>
@@ -2319,7 +2336,7 @@ function Tests({
         </div>
       )}
 
-      {tab === "cards" && deckComplete && (
+      {tab === "cards" && deckComplete && flashcards.length > 0 && (
         <section className="mt-6 rounded-card border border-purple/30 bg-card p-6 text-center">
           <div className="mx-auto grid size-14 place-items-center rounded-full bg-purple/15 text-purple-light">
             <Icon name="cards" className="size-7" />
@@ -2751,6 +2768,12 @@ export default function App() {
     } catch {
       saved = null;
     }
+    let savedStudy: { language?: Language; data?: StudyData } | null = null;
+    try {
+      savedStudy = row.study ? JSON.parse(row.study) : null;
+    } catch {
+      savedStudy = null;
+    }
     let audioUrl: string | undefined;
     if (row.audio_path) {
       try {
@@ -2775,6 +2798,8 @@ export default function App() {
       storagePath: row.audio_path ?? undefined,
       summary: saved?.data,
       summaryLanguage: saved?.language,
+      study: savedStudy?.data,
+      studyLanguage: savedStudy?.language,
     });
     setProcessed(true);
     setScreen("summary");
@@ -2823,6 +2848,7 @@ export default function App() {
             key={testsEntry}
             lecture={selectedLecture}
             onBack={() => navigate("summary")}
+            onLectureUpdate={updateLecture}
           />
         )}
         {screen === "library" && <Library onOpen={openRecording} />}
