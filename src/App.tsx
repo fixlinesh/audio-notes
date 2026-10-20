@@ -374,8 +374,14 @@ function Home({
   const [query, setQuery] = useState("");
   const [profileFeedback, setProfileFeedback] = useState("");
   const [userName, setUserName] = useState("");
+  const [userEmail, setUserEmail] = useState("");
+  const [libraryCount, setLibraryCount] = useState<number | null>(null);
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUserName(data.user?.email?.split("@")[0] ?? ""));
+    supabase.auth.getUser().then(({ data }) => {
+      setUserEmail(data.user?.email ?? "");
+      setUserName(data.user?.email?.split("@")[0] ?? "");
+    });
+    listRecordings().then((rows) => setLibraryCount(rows.length)).catch(() => setLibraryCount(0));
   }, []);
   const searchableItems = [
     { title: "Graph Algorithms", detail: "Notes · CS101", screen: "notes" as Screen },
@@ -406,7 +412,7 @@ function Home({
               className="grid size-10 place-items-center rounded-full bg-gradient-to-br from-accent to-purple text-sm font-bold text-white ring-2 ring-card"
               onClick={() => setPanel("profile")}
             >
-              Z
+              {userName ? userName[0].toUpperCase() : "U"}
             </Button>
           </div>
         }
@@ -479,16 +485,17 @@ function Home({
         </Heading>
         <div className="grid grid-cols-3 gap-3">
           {[
-            ["book", "Recent", "Transcripts", "12"],
-            ["test", "Pending", "Quizzes", "3"],
-            ["sparkles", "AI", "Tutor", "Ask"],
+            ["book", "Моя", "Библиотека", libraryCount !== null ? String(libraryCount) : "0"],
+            ["test", "Тесты и", "Квизы", "AI"],
+            ["sparkles", "ИИ", "Тьютор", "Чат"],
           ].map(([icon, first, second, badge], index) => (
             <Button
               className="rounded-2xl border border-line bg-card p-3 text-left transition hover:border-accent/50"
               key={second}
               onClick={() => {
-                if (index === 1) openTests("quiz");
-                else navigate(index === 0 ? "notes" : "teacher");
+                if (index === 0) navigate("library");
+                else if (index === 1) openTests("quiz");
+                else navigate("teacher");
               }}
             >
               <span className="mb-6 flex items-start justify-between">
@@ -552,11 +559,11 @@ function Home({
         <OverlayPanel title="Your Profile" subtitle="L-easy learner" onClose={() => setPanel(null)}>
           <div className="flex items-center gap-4 rounded-card border border-line bg-card p-5">
             <div className="grid size-14 place-items-center rounded-full bg-gradient-to-br from-accent to-purple text-lg font-bold text-white">
-              Z
+              {userName ? userName[0].toUpperCase() : "U"}
             </div>
             <div>
-              <div className="font-bold text-white">Zhibek</div>
-              <div className="mt-1 text-xs text-copy-muted">7 day learning streak · Level 4</div>
+              <div className="font-bold text-white">{userName || "Студент"}</div>
+              <div className="mt-1 text-xs text-copy-muted">{userEmail || "Активный аккаунт"}</div>
             </div>
           </div>
           <div className="mt-4 space-y-3">
@@ -1860,12 +1867,29 @@ function LectureSummary({
 
 
 
-const vocabularyDefinitions: Record<string, string> = {
-  Relaxation: "The process of improving the currently known shortest distance to a vertex.",
-  "Priority Queue": "A structure that always returns the unvisited node with the smallest known distance.",
-  "Weighted Graph": "A graph whose edges carry costs such as distance, time, or price.",
-  Greedy: "A strategy that makes the best local choice available at each step.",
-};
+function parseVocabulary(terms?: string[]): { termsList: string[]; definitions: Record<string, string> } {
+  if (!terms || terms.length === 0) {
+    return {
+      termsList: ["Главная идея"],
+      definitions: { "Главная идея": "Ключевые понятия и термины появятся здесь после ИИ-анализа лекции." },
+    };
+  }
+  const termsList: string[] = [];
+  const definitions: Record<string, string> = {};
+  for (const item of terms) {
+    const colonIdx = item.indexOf(":");
+    if (colonIdx > 0) {
+      const name = item.slice(0, colonIdx).trim();
+      const def = item.slice(colonIdx + 1).trim();
+      termsList.push(name);
+      definitions[name] = def;
+    } else {
+      termsList.push(item);
+      definitions[item] = item;
+    }
+  }
+  return { termsList, definitions };
+}
 
 function Notes({
   lecture,
@@ -1876,41 +1900,55 @@ function Notes({
   openTests: (mode: "quiz" | "cards") => void;
   onBack: () => void;
 }) {
-  const [selectedTerm, setSelectedTerm] = useState("Relaxation");
+  const { termsList, definitions } = parseVocabulary(lecture.summary?.terms);
+  const [selectedTerm, setSelectedTerm] = useState(termsList[0] ?? "Главная идея");
   const [actionStatus, setActionStatus] = useState("");
   const [downloading, setDownloading] = useState(false);
 
+  useEffect(() => {
+    if (termsList.length > 0 && !definitions[selectedTerm]) {
+      setSelectedTerm(termsList[0]);
+    }
+  }, [lecture.summary, termsList, definitions, selectedTerm]);
+
   const downloadNotes = () => {
     setDownloading(true);
-    setActionStatus("Preparing your PDF notes…");
+    setActionStatus("Готовим заметки к печати/PDF…");
     window.setTimeout(() => {
       setDownloading(false);
-      setActionStatus("PDF is ready. Choose “Save as PDF” in the print dialog.");
+      setActionStatus("PDF готов. Выберите «Сохранить как PDF» в окне печати.");
       window.print();
     }, 500);
   };
 
   const shareNotes = async () => {
+    const preview = lecture.summary?.simplified || lecture.summary?.explanation || "Конспект лекции";
     const shareData = {
-      title: `L-easy · ${lecture.title}`,
-      text: `AI lecture notes for ${lecture.title}: Dijkstra’s algorithm, priority queues, and weighted graphs.`,
+      title: `Audio Notes · ${lecture.title}`,
+      text: `Конспект лекции "${lecture.title}":\n${preview}`,
     };
 
     if (navigator.share) {
-      setActionStatus("Opening share options…");
+      setActionStatus("Открываем меню отправки…");
       await navigator.share(shareData)
-        .then(() => setActionStatus("Notes shared successfully."))
-        .catch(() => setActionStatus("Sharing was cancelled."));
+        .then(() => setActionStatus("Заметки успешно отправлены."))
+        .catch(() => setActionStatus("Отправка отменена."));
       return;
     }
 
     try {
       await navigator.clipboard.writeText(`${shareData.title}\n${shareData.text}`);
-      setActionStatus("Share text copied to your clipboard.");
+      setActionStatus("Текст конспекта скопирован в буфер обмена.");
     } catch {
-      setActionStatus("Sharing is unavailable in this browser.");
+      setActionStatus("Отправка недоступна в этом браузере.");
     }
   };
+
+  const keyPoints = lecture.summary?.keyPoints && lecture.summary.keyPoints.length > 0
+    ? lecture.summary.keyPoints
+    : lecture.summary?.explanation
+      ? [lecture.summary.explanation]
+      : ["Ключевые пункты конспекта появятся здесь после генерации в разделе Summary."];
 
   return (
     <div className="notes-page page-enter px-5">
@@ -1919,7 +1957,7 @@ function Notes({
         title={lecture.title}
         action={
           <Button
-            aria-label="Back to lecture summary"
+            aria-label="Назад к конспекту лекции"
             className="grid size-10 place-items-center rounded-full border border-line bg-card text-copy-muted"
             onClick={onBack}
           >
@@ -1934,10 +1972,10 @@ function Notes({
           onClick={downloadNotes}
         >
           <Icon name="download" className="size-4" />
-          {downloading ? "Preparing PDF…" : "Download PDF Notes"}
+          {downloading ? "Подготовка PDF…" : "Скачать конспект в PDF"}
         </Button>
         <Button
-          aria-label="Share notes"
+          aria-label="Поделиться заметками"
           className="grid size-12 place-items-center rounded-xl border border-line bg-card text-copy-muted"
           onClick={shareNotes}
         >
@@ -1956,18 +1994,14 @@ function Notes({
             <Icon name="sparkles" className="size-4" />
           </div>
           <Heading level={2} className="text-base font-bold text-white">
-            Executive Summary
+            Ключевые тезисы лекции
           </Heading>
         </div>
         <ul className="space-y-3 text-sm leading-6 text-copy-muted">
-          {[
-            "Dijkstra’s algorithm finds the shortest path in weighted graphs.",
-            "It uses a greedy strategy and a priority queue.",
-            "The algorithm requires all edge weights to be non-negative.",
-          ].map((item) => (
-            <li className="flex gap-3" key={item}>
+          {keyPoints.map((item, idx) => (
+            <li className="flex gap-3" key={idx}>
               <span className="mt-2 size-1.5 shrink-0 rounded-full bg-accent-bright" />
-              {item}
+              <span>{item}</span>
             </li>
           ))}
         </ul>
@@ -1975,28 +2009,32 @@ function Notes({
 
       <section className="mt-4 rounded-card border border-line bg-card p-5">
         <Heading level={2} className="text-base font-bold text-white">
-          Key Concepts & Formulas
+          Разбор и практические примеры
         </Heading>
         <div className="mt-4 space-y-3">
           <div className="rounded-xl bg-elevated p-4">
-            <div className="text-xs font-semibold text-copy-muted">Time complexity</div>
-            <div className="mt-2 font-mono text-lg font-semibold text-blue-soft">O((V + E) log V)</div>
-          </div>
-          <div className="rounded-xl bg-elevated p-4">
-            <div className="text-xs font-semibold text-copy-muted">Relaxation rule</div>
-            <div className="mt-2 font-mono text-sm font-semibold text-blue-soft">
-              dist[v] = min(dist[v], dist[u] + w)
+            <div className="text-xs font-semibold text-accent-bright uppercase tracking-wider">Суть простыми словами</div>
+            <div className="mt-2 text-sm leading-6 text-white">
+              {lecture.summary?.simplified || "Понятное объяснение простыми словами появится здесь."}
             </div>
           </div>
+          {lecture.summary?.example && (
+            <div className="rounded-xl bg-elevated p-4">
+              <div className="text-xs font-semibold text-purple-light uppercase tracking-wider">Практический пример</div>
+              <div className="mt-2 text-sm leading-6 text-white">
+                {lecture.summary.example}
+              </div>
+            </div>
+          )}
         </div>
       </section>
 
       <section className="mt-4 rounded-card border border-line bg-card p-5">
         <Heading level={2} className="text-base font-bold text-white">
-          Interactive Vocab
+          Словарь терминов
         </Heading>
         <div className="mt-4 flex flex-wrap gap-2">
-          {["Relaxation", "Priority Queue", "Weighted Graph", "Greedy"].map((term) => (
+          {termsList.map((term) => (
             <Button
               className={`rounded-full border px-3 py-2 text-xs font-semibold ${
                 term === selectedTerm
@@ -2013,28 +2051,28 @@ function Notes({
         <div className="mt-4 rounded-xl border-l-2 border-purple bg-purple/10 p-4">
           <div className="text-xs font-bold text-purple-light">{selectedTerm}</div>
           <p className="mt-1 text-xs leading-5 text-copy-muted">
-            {vocabularyDefinitions[selectedTerm]}
+            {definitions[selectedTerm] || "Определение термина."}
           </p>
         </div>
       </section>
 
       <section className="mt-4 overflow-hidden rounded-card border border-purple/40 bg-gradient-to-br from-purple/20 to-accent-muted p-5">
-        <div className="text-xs font-bold uppercase tracking-widest text-purple-light">Master this lecture</div>
+        <div className="text-xs font-bold uppercase tracking-widest text-purple-light">Закрепление материала</div>
         <Heading level={2} className="mt-2 text-lg font-bold text-white">
-          Ready to test your knowledge?
+          Проверьте свои знания
         </Heading>
         <div className="mt-5 grid grid-cols-2 gap-3">
           <Button
             className="rounded-xl bg-white px-3 py-3 text-xs font-bold text-ink"
             onClick={() => openTests("quiz")}
           >
-            Start Quiz <span className="block text-mini font-medium text-copy-dim">5 questions</span>
+            Тест (Quiz) <span className="block text-mini font-medium text-copy-dim">{lecture.study?.quiz?.length || 8} вопросов</span>
           </Button>
           <Button
             className="rounded-xl border border-white/15 bg-white/10 px-3 py-3 text-xs font-bold text-white"
             onClick={() => openTests("cards")}
           >
-            Practice Cards <span className="block text-mini font-medium text-copy-muted">12 terms</span>
+            Флеш-карточки <span className="block text-mini font-medium text-copy-muted">{lecture.study?.flashcards?.length || 8} терминов</span>
           </Button>
         </div>
       </section>
@@ -2368,7 +2406,46 @@ function Teacher({ lecture, onBack }: { lecture: Lecture; onBack: () => void }) 
   const [replying, setReplying] = useState(false);
   const [listening, setListening] = useState(false);
   const [voiceCallActive, setVoiceCallActive] = useState(false);
+  const [voiceTranscript, setVoiceTranscript] = useState("");
   const [callSeconds, setCallSeconds] = useState(0);
+  const recognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (!voiceCallActive) {
+      if (recognitionRef.current) {
+        try { recognitionRef.current.stop(); } catch {}
+        recognitionRef.current = null;
+      }
+      return;
+    }
+    const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRec) {
+      setVoiceTranscript("Распознавание речи не поддерживается в этом браузере. Используйте текстовый чат.");
+      return;
+    }
+    const rec = new SpeechRec();
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = lecture.outputLanguage === "Russian" ? "ru-RU" : lecture.outputLanguage === "Kazakh" ? "kk-KZ" : "en-US";
+    rec.onresult = (event: any) => {
+      let interim = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const text = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          setVoiceTranscript(text);
+          sendMessage(text);
+        } else {
+          interim += text;
+        }
+      }
+      if (interim) setVoiceTranscript(interim);
+    };
+    try { rec.start(); } catch {}
+    recognitionRef.current = rec;
+    return () => {
+      try { rec.stop(); } catch {}
+    };
+  }, [voiceCallActive, lecture.outputLanguage]);
 
   const sendMessage = async (text: string) => {
     const userMessage = text.trim();
@@ -2387,7 +2464,14 @@ function Teacher({ lecture, onBack }: { lecture: Lecture; onBack: () => void }) 
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error ?? `Request failed (${response.status})`);
-      setMessages((current) => [...current, { role: "assistant", text: String(data.answer) }]);
+      const replyText = String(data.answer);
+      setMessages((current) => [...current, { role: "assistant", text: replyText }]);
+      if (voiceCallActive && typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+        const utter = new SpeechSynthesisUtterance(replyText.slice(0, 300));
+        utter.lang = lecture.outputLanguage === "Russian" ? "ru-RU" : "en-US";
+        window.speechSynthesis.speak(utter);
+      }
     } catch (err) {
       const reason = err instanceof Error ? err.message : "The AI teacher is unavailable.";
       setMessages((current) => [...current, { role: "assistant", text: `⚠ ${reason}` }]);
@@ -2471,9 +2555,9 @@ function Teacher({ lecture, onBack }: { lecture: Lecture; onBack: () => void }) 
               : `Ask anything about ${lecture.title} using your voice.`}
           </p>
           {voiceCallActive && (
-            <div className="mt-5 rounded-2xl border border-line bg-card p-4 text-left text-xs leading-5 text-copy-muted">
-              <span className="font-bold text-purple-light">Demo transcript</span>
-              <p className="mt-1">“How does the priority queue make Dijkstra faster?”</p>
+            <div className="mt-5 w-full rounded-2xl border border-line bg-card p-4 text-left text-xs leading-5 text-copy-muted">
+              <span className="font-bold text-purple-light">Голосовой режим</span>
+              <p className="mt-1 text-white">{voiceTranscript || "Говорите в микрофон... Преподаватель слушает ваш вопрос."}</p>
             </div>
           )}
           <Button
@@ -2569,12 +2653,12 @@ function Teacher({ lecture, onBack }: { lecture: Lecture; onBack: () => void }) 
 }
 
 const defaultLecture: Lecture = {
-  title: "Graph Algorithms",
-  subject: "Computer Science 101",
-  professor: "Dr. Sarah Chen",
-  date: "2025-10-16",
-  sourceLanguage: "English",
-  outputLanguage: "Kazakh",
+  title: "Моя лекция",
+  subject: "Общий предмет",
+  professor: "Преподаватель",
+  date: new Date().toISOString().split("T")[0],
+  sourceLanguage: "Russian",
+  outputLanguage: "Russian",
   sourceType: "recording",
 };
 
