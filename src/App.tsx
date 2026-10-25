@@ -288,21 +288,25 @@ function OverlayPanel({
   children: ReactNode;
 }) {
   return (
-    <div className="fixed inset-0 z-50 mx-auto flex max-w-md flex-col overflow-y-auto bg-app px-5 pb-page">
-      <TopBar
-        title={title}
-        subtitle={subtitle}
-        action={
-          <Button
-            aria-label="Close"
-            className="grid size-10 place-items-center rounded-full border border-line bg-card text-copy-muted"
-            onClick={onClose}
-          >
-            <Icon name="arrow" className="size-4 rotate-180" />
-          </Button>
-        }
-      />
-      {children}
+    <div className="fixed inset-0 z-50 mx-auto flex max-w-md flex-col bg-app px-5">
+      <div className="shrink-0">
+        <TopBar
+          title={title}
+          subtitle={subtitle}
+          action={
+            <Button
+              aria-label="Close"
+              className="grid size-10 place-items-center rounded-full border border-line bg-card text-copy-muted"
+              onClick={onClose}
+            >
+              <Icon name="arrow" className="size-4 rotate-180" />
+            </Button>
+          }
+        />
+      </div>
+      <div className="flex-1 overflow-y-auto pb-28">
+        {children}
+      </div>
     </div>
   );
 }
@@ -402,16 +406,30 @@ function Home({
   const [university, setUniversity] = useState("Astana IT University");
   const [major, setMajor] = useState("ICT · Computer Science");
   const [avatarTheme, setAvatarTheme] = useState<string>("aurora");
+  const [avatarUrl, setAvatarUrl] = useState<string>("");
   const [defaultLang, setDefaultLang] = useState<Language>("Russian");
   const [autoTranscribe, setAutoTranscribe] = useState(true);
   const [defaultNoiseFilter, setDefaultNoiseFilter] = useState(true);
   const [voiceTts, setVoiceTts] = useState(true);
   const [newPassword, setNewPassword] = useState("");
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   const [libraryCount, setLibraryCount] = useState<number | null>(null);
   const [summariesCount, setSummariesCount] = useState(0);
   const [quizzesCount, setQuizzesCount] = useState(0);
   const [totalMinutes, setTotalMinutes] = useState(0);
+
+  const refreshLibraryStats = () => {
+    listRecordings()
+      .then((rows) => {
+        setLibraryCount(rows.length);
+        setSummariesCount(rows.filter((r) => hasJsonContent(r.summary)).length);
+        setQuizzesCount(rows.filter((r) => hasJsonContent(r.study)).length);
+        const totalSecs = rows.reduce((sum, r) => sum + (r.duration ?? 0), 0);
+        setTotalMinutes(Math.max(rows.length > 0 ? 1 : 0, Math.round(totalSecs / 60)));
+      })
+      .catch(() => setLibraryCount(0));
+  };
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -424,6 +442,7 @@ function Home({
       if (meta.university) setUniversity(String(meta.university));
       if (meta.major) setMajor(String(meta.major));
       if (meta.avatar_theme && typeof meta.avatar_theme === "string") setAvatarTheme(meta.avatar_theme);
+      if (meta.avatar_url && typeof meta.avatar_url === "string") setAvatarUrl(meta.avatar_url);
       if (meta.default_lang === "English" || meta.default_lang === "Russian" || meta.default_lang === "Kazakh") {
         setDefaultLang(meta.default_lang);
       }
@@ -434,20 +453,22 @@ function Home({
         setMemberSince(new Date(u.created_at).toLocaleDateString("ru-RU", { month: "short", year: "numeric" }));
       }
     });
-    listRecordings()
-      .then((rows) => {
-        setLibraryCount(rows.length);
-        setSummariesCount(rows.filter((r) => hasJsonContent(r.summary)).length);
-        setQuizzesCount(rows.filter((r) => hasJsonContent(r.study)).length);
-        const totalSecs = rows.reduce((sum, r) => sum + (r.duration ?? 0), 0);
-        setTotalMinutes(Math.max(rows.length > 0 ? 1 : 0, Math.round(totalSecs / 60)));
-      })
-      .catch(() => setLibraryCount(0));
+    refreshLibraryStats();
   }, []);
 
   const xp = (libraryCount ?? 0) * 50 + summariesCount * 40 + quizzesCount * 60;
   const level = Math.max(1, Math.floor(xp / 150) + 1);
   const levelProgress = Math.min(100, Math.round(((xp % 150) / 150) * 100));
+  const levelTitles = [
+    "Новичок",
+    "Слушатель",
+    "Исследователь",
+    "Аналитик",
+    "Эрудит",
+    "Магистр конспектов",
+    "Академик L-easy",
+  ];
+  const levelTitle = levelTitles[Math.min(level - 1, levelTitles.length - 1)];
   const avatarGradient = avatarThemes[avatarTheme] ?? avatarThemes.aurora;
   const initials = (userName || "U")
     .trim()
@@ -455,6 +476,31 @@ function Home({
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("")
     .slice(0, 2) || "U";
+
+  const handleAvatarFile = (file?: File) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const size = 160;
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        const minSide = Math.min(img.width, img.height);
+        const sx = (img.width - minSide) / 2;
+        const sy = (img.height - minSide) / 2;
+        ctx.drawImage(img, sx, sy, minSide, minSide, 0, 0, size, size);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
+        setAvatarUrl(dataUrl);
+        void saveUserProfile({ avatar_url: dataUrl }, "Фото профиля обновлено!");
+      };
+      img.src = String(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
 
   const saveUserProfile = async (patch?: Record<string, unknown>, customMsg?: string) => {
     setSavingProfile(true);
@@ -466,6 +512,7 @@ function Home({
         university: university.trim() || "Astana IT University",
         major: major.trim() || "ICT · Computer Science",
         avatar_theme: avatarTheme,
+        avatar_url: avatarUrl,
         default_lang: defaultLang,
         auto_transcribe: autoTranscribe,
         default_noise_filter: defaultNoiseFilter,
@@ -527,14 +574,19 @@ function Home({
             </Button>
             <Button
               aria-label="Open profile menu"
-              className={`grid size-10 place-items-center rounded-full bg-gradient-to-br ${avatarGradient} text-xs font-bold text-white ring-2 ring-card`}
+              className={`relative grid size-10 place-items-center overflow-hidden rounded-full bg-gradient-to-br ${avatarGradient} text-xs font-bold text-white ring-2 ring-card`}
               onClick={() => {
                 setProfileFeedback("");
                 setProfileError("");
+                refreshLibraryStats();
                 setPanel("profile");
               }}
             >
-              {initials}
+              {avatarUrl ? (
+                <img alt={userName || "Avatar"} className="size-full object-cover" src={avatarUrl} />
+              ) : (
+                initials
+              )}
             </Button>
           </div>
         }
@@ -679,23 +731,40 @@ function Home({
 
       {panel === "profile" && (
         <OverlayPanel title="Профиль студента" subtitle="L-easy · Личный кабинет" onClose={() => setPanel(null)}>
-          {/* Карточка студента с уровнем и XP */}
-          <section className="relative overflow-hidden rounded-card border border-line bg-card p-5">
+          {/* Карточка студента с уровнем, фото и XP */}
+          <section className="rounded-card border border-line bg-card p-5">
+            <Input
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => handleAvatarFile(e.target.files?.[0])}
+              ref={avatarInputRef}
+              type="file"
+            />
             <div className="flex items-center gap-4">
-              <div
-                className={`grid size-16 shrink-0 place-items-center rounded-full bg-gradient-to-br ${avatarGradient} text-xl font-bold text-white shadow-glow ring-2 ring-white/15`}
+              <Button
+                aria-label="Изменить фото профиля"
+                className={`group relative grid size-16 shrink-0 place-items-center overflow-hidden rounded-full bg-gradient-to-br ${avatarGradient} text-xl font-bold text-white shadow-glow ring-2 ring-white/20`}
+                onClick={() => avatarInputRef.current?.click()}
+                title="Нажмите, чтобы загрузить фото"
               >
-                {initials}
-              </div>
+                {avatarUrl ? (
+                  <img alt={userName || "Avatar"} className="size-full object-cover" src={avatarUrl} />
+                ) : (
+                  <span>{initials}</span>
+                )}
+                <span className="absolute inset-0 flex items-center justify-center bg-black/50 text-[10px] font-bold text-white opacity-0 transition group-hover:opacity-100">
+                  Фото
+                </span>
+              </Button>
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <div className="truncate text-base font-bold text-white">{userName || "Студент"}</div>
                   <span className="shrink-0 rounded-full bg-accent-muted px-2.5 py-0.5 text-mini font-bold text-accent-bright">
-                    Ур. {level}
+                    Ур. {level} · {levelTitle}
                   </span>
                 </div>
                 <div className="mt-0.5 truncate text-xs text-copy-muted">{userEmail || "Активный аккаунт"}</div>
-                <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-mini text-purple-light">
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs font-medium text-purple-light">
                   <span>{university}</span>
                   <span>·</span>
                   <span>{major}</span>
@@ -703,16 +772,21 @@ function Home({
               </div>
             </div>
 
-            <div className="mt-4">
-              <div className="flex items-center justify-between text-mini font-semibold text-copy-muted">
-                <span>Опыт обучения: {xp} XP</span>
-                <span>До уровня {level + 1}: {150 - (xp % 150)} XP</span>
+            <div className="mt-4 rounded-xl bg-elevated p-3">
+              <div className="flex items-center justify-between text-xs font-semibold text-white">
+                <span>Уровень {level} ({xp} XP)</span>
+                <span className="text-copy-muted">Ещё {150 - (xp % 150)} XP до Ур. {level + 1}</span>
               </div>
-              <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-elevated">
+              <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-card">
                 <div
                   className="h-full rounded-full bg-gradient-to-r from-accent to-purple transition-all duration-500"
-                  style={{ width: `${Math.max(8, levelProgress)}%` }}
+                  style={{ width: `${Math.max(10, levelProgress)}%` }}
                 />
+              </div>
+              <div className="mt-2 flex items-center justify-between text-mini text-copy-muted">
+                <span>+50 XP за лекцию</span>
+                <span>+40 XP за конспект</span>
+                <span>+60 XP за тест</span>
               </div>
             </div>
           </section>
@@ -897,7 +971,30 @@ function Home({
               </label>
 
               <div>
-                <span className="mb-2 block text-xs font-semibold text-copy-muted">Тема аватара</span>
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-copy-muted">Фото и тема аватара</span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      className="text-xs font-bold text-accent-bright"
+                      onClick={() => avatarInputRef.current?.click()}
+                      type="button"
+                    >
+                      Загрузить фото
+                    </Button>
+                    {avatarUrl && (
+                      <Button
+                        className="text-xs font-bold text-red"
+                        onClick={() => {
+                          setAvatarUrl("");
+                          void saveUserProfile({ avatar_url: "" }, "Фото удалено");
+                        }}
+                        type="button"
+                      >
+                        Удалить
+                      </Button>
+                    )}
+                  </div>
+                </div>
                 <div className="grid grid-cols-4 gap-2">
                   {[
                     ["aurora", "Синий", "from-accent to-purple"],
