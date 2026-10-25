@@ -425,9 +425,9 @@ function Home({
   const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>(() => {
     try {
       const cached = localStorage.getItem("leasy_schedule");
-      if (cached) {
+      if (cached !== null) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed as ScheduleItem[];
+        if (Array.isArray(parsed)) return parsed as ScheduleItem[];
       }
     } catch {}
     return defaultSchedule;
@@ -474,10 +474,13 @@ function Home({
       if (typeof meta.auto_transcribe === "boolean") setAutoTranscribe(meta.auto_transcribe);
       if (typeof meta.default_noise_filter === "boolean") setDefaultNoiseFilter(meta.default_noise_filter);
       if (typeof meta.voice_tts === "boolean") setVoiceTts(meta.voice_tts);
-      if (Array.isArray(meta.schedule) && meta.schedule.length > 0) {
+      const localTs = Number(localStorage.getItem("leasy_schedule_ts") || "0");
+      const remoteTs = Number(meta.schedule_ts || "0");
+      if (Array.isArray(meta.schedule) && remoteTs >= localTs) {
         setScheduleItems(meta.schedule as ScheduleItem[]);
         try {
           localStorage.setItem("leasy_schedule", JSON.stringify(meta.schedule));
+          if (remoteTs > 0) localStorage.setItem("leasy_schedule_ts", String(remoteTs));
         } catch {}
       }
       if (u.created_at) {
@@ -580,13 +583,15 @@ function Home({
     }
   };
   const persistSchedule = async (nextList: ScheduleItem[], msg: string) => {
+    const nowTs = Date.now();
     setScheduleItems(nextList);
     try {
       localStorage.setItem("leasy_schedule", JSON.stringify(nextList));
+      localStorage.setItem("leasy_schedule_ts", String(nowTs));
     } catch {}
     setScheduleNotice(msg);
     try {
-      await supabase.auth.updateUser({ data: { schedule: nextList } });
+      await supabase.auth.updateUser({ data: { schedule: nextList, schedule_ts: nowTs } });
     } catch {}
   };
 
