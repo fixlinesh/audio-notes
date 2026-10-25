@@ -484,9 +484,13 @@ function getInitialStats() {
 function Home({
   navigate,
   openTests,
+  onOpenRecording,
+  onStartSubjectRecord,
 }: {
   navigate: (screen: Screen) => void;
   openTests: (mode: "quiz" | "cards") => void;
+  onOpenRecording: (row: RecordingRow) => Promise<void>;
+  onStartSubjectRecord: (subject: string) => void;
 }) {
   const [initProfile] = useState<CachedProfile>(() => getInitialProfile());
   const [initStats] = useState(() => getInitialStats());
@@ -533,10 +537,12 @@ function Home({
   const [summariesCount, setSummariesCount] = useState(initStats.summariesCount);
   const [quizzesCount, setQuizzesCount] = useState(initStats.quizzesCount);
   const [totalMinutes, setTotalMinutes] = useState(initStats.totalMinutes);
+  const [recentRows, setRecentRows] = useState<RecordingRow[]>([]);
 
   const refreshLibraryStats = () => {
     listRecordings()
       .then((rows) => {
+        setRecentRows(rows);
         const lc = rows.length;
         const sc = rows.filter((r) => hasJsonContent(r.summary)).length;
         const qc = rows.filter((r) => hasJsonContent(r.study)).length;
@@ -903,7 +909,8 @@ function Home({
                 className={`grid size-10 shrink-0 place-items-center rounded-xl ${
                   index === 0 ? "bg-accent text-white shadow-glow" : "bg-elevated text-copy-muted"
                 }`}
-                onClick={() => navigate("record")}
+                onClick={() => onStartSubjectRecord(item.subject)}
+                title={`Записать лекцию: ${item.subject}`}
               >
                 <Icon name="mic" className="size-4" />
               </Button>
@@ -950,41 +957,96 @@ function Home({
       </section>
 
       {panel === "search" && (
-        <OverlayPanel title="Search L-easy" subtitle="Lectures, notes and practice" onClose={() => setPanel(null)}>
+        <OverlayPanel title="Поиск по L-easy" subtitle="Ваши лекции, конспекты и разделы" onClose={() => setPanel(null)}>
           <div className="flex items-center gap-3 rounded-2xl border border-line bg-card px-4 py-3">
             <Icon name="search" className="size-4 text-copy-muted" />
             <Input
               autoFocus
               className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-copy-dim"
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search your learning space..."
+              placeholder="Поиск по названию, тексту или терминам..."
               value={query}
             />
-          </div>
-          <div className="mt-5 space-y-3">
-            {searchResults.map((item) => (
-              <Button
-                className="flex w-full items-center justify-between rounded-2xl border border-line bg-card p-4 text-left"
-                key={item.title}
-                onClick={() => {
-                  setPanel(null);
-                  if (item.screen === "tests") openTests("quiz");
-                  else navigate(item.screen);
-                }}
-              >
-                <span>
-                  <span className="block text-sm font-bold text-white">{item.title}</span>
-                  <span className="mt-1 block text-xs text-copy-muted">{item.detail}</span>
-                </span>
-                <Icon name="arrow" className="size-4 text-accent-bright" />
+            {query && (
+              <Button className="text-xs font-bold text-copy-muted" onClick={() => setQuery("")}>
+                ✕
               </Button>
-            ))}
-            {searchResults.length === 0 && (
-              <div className="rounded-2xl border border-line bg-card p-6 text-center text-sm text-copy-muted">
-                No results found. Try “notes” or “quiz”.
-              </div>
             )}
           </div>
+
+          {(() => {
+            const q = query.trim().toLowerCase();
+            const matchedRows = recentRows.filter((row) => {
+              if (!q) return true;
+              const hay = `${row.title ?? ""} ${row.transcript ?? ""} ${
+                typeof row.summary === "string" ? row.summary : JSON.stringify(row.summary ?? "")
+              }`.toLowerCase();
+              return hay.includes(q);
+            });
+            return (
+              <div className="mt-5 space-y-4">
+                <div>
+                  <div className="mb-2 text-mini font-bold uppercase tracking-wider text-copy-muted">
+                    Мои лекции ({matchedRows.length})
+                  </div>
+                  <div className="space-y-2.5">
+                    {matchedRows.slice(0, 6).map((row) => (
+                      <Button
+                        className="flex w-full items-center justify-between rounded-2xl border border-line bg-card p-3.5 text-left transition hover:border-accent/50"
+                        key={row.id}
+                        onClick={() => {
+                          setPanel(null);
+                          void onOpenRecording(row);
+                        }}
+                      >
+                        <span className="min-w-0 flex-1 pr-3">
+                          <span className="block truncate text-sm font-bold text-white">
+                            {row.title ?? "Лекция без названия"}
+                          </span>
+                          <span className="mt-1 block truncate text-xs text-copy-muted">
+                            {row.created_at ? new Date(row.created_at).toLocaleDateString("ru-RU") : ""}
+                            {hasJsonContent(row.summary) ? " · ИИ-конспект" : ""}
+                            {hasJsonContent(row.study) ? " · Тест готов" : ""}
+                          </span>
+                        </span>
+                        <Icon name="arrow" className="size-4 shrink-0 text-accent-bright" />
+                      </Button>
+                    ))}
+                    {matchedRows.length === 0 && (
+                      <div className="rounded-2xl border border-line bg-card p-4 text-center text-xs text-copy-muted">
+                        Лекции по запросу «{query}» не найдены.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="mb-2 text-mini font-bold uppercase tracking-wider text-copy-muted">
+                    Быстрые переходы
+                  </div>
+                  <div className="space-y-2">
+                    {searchResults.map((item) => (
+                      <Button
+                        className="flex w-full items-center justify-between rounded-2xl border border-line bg-card p-3.5 text-left"
+                        key={item.title}
+                        onClick={() => {
+                          setPanel(null);
+                          if (item.screen === "tests") openTests("quiz");
+                          else navigate(item.screen);
+                        }}
+                      >
+                        <span>
+                          <span className="block text-sm font-bold text-white">{item.title}</span>
+                          <span className="mt-0.5 block text-xs text-copy-muted">{item.detail}</span>
+                        </span>
+                        <Icon name="arrow" className="size-4 text-accent-bright" />
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </OverlayPanel>
       )}
 
@@ -1447,9 +1509,9 @@ function Home({
                       className="grid size-9 place-items-center rounded-xl bg-accent text-white"
                       onClick={() => {
                         setPanel(null);
-                        navigate("record");
+                        onStartSubjectRecord(item.subject);
                       }}
-                      title="Записать лекцию"
+                      title={`Записать лекцию: ${item.subject}`}
                     >
                       <Icon name="mic" className="size-4" />
                     </Button>
@@ -2675,12 +2737,33 @@ function LectureSummary({
             <p className="mt-2 text-sm leading-relaxed text-copy">{currentText}</p>
           )}
 
-          <button
-            onClick={() => setSaved(true)}
-            className="mt-4 rounded-button bg-elevated px-4 py-2 text-xs font-medium text-white hover:bg-neutral-800"
-          >
-            {saved ? "Saved ✓" : "Save"}
-          </button>
+          <div className="mt-4 flex items-center gap-2">
+            <button
+              onClick={() => {
+                if (summaryData) {
+                  onLectureUpdate({ summary: summaryData, summaryLanguage: language });
+                  if (lecture.recordingId) {
+                    void updateRecording(lecture.recordingId, {
+                      summary: JSON.stringify({ language, data: summaryData }),
+                    });
+                  }
+                }
+                setEditing(false);
+                setSaved(true);
+                window.setTimeout(() => setSaved(false), 2500);
+              }}
+              className="rounded-button bg-accent px-4 py-2 text-xs font-bold text-white shadow-glow"
+            >
+              {saved ? "Сохранено в облаке ✓" : "Сохранить изменения"}
+            </button>
+            <button
+              onClick={download}
+              className="rounded-button border border-line bg-elevated px-4 py-2 text-xs font-semibold text-copy-muted hover:text-white"
+            >
+              Скачать PDF
+            </button>
+          </div>
+          {downloadStatus && <p className="mt-2 text-mini text-accent-bright">{downloadStatus}</p>}
         </div>
       </section>
 
@@ -2706,6 +2789,34 @@ function LectureSummary({
             </span>
           ))}
         </div>
+      </section>
+
+      {/* Быстрые действия по лекции */}
+      <section className="mt-5 grid grid-cols-2 gap-3">
+        <Button
+          className="rounded-xl bg-accent py-3.5 text-xs font-bold text-white shadow-glow"
+          onClick={() => navigate("notes")}
+        >
+          Конспект и словарь (Notes)
+        </Button>
+        <Button
+          className="rounded-xl bg-purple py-3.5 text-xs font-bold text-white"
+          onClick={() => navigate("teacher")}
+        >
+          Спросить AI Teacher
+        </Button>
+        <Button
+          className="rounded-xl border border-line bg-card py-3.5 text-xs font-bold text-white"
+          onClick={() => openTests("quiz")}
+        >
+          Пройти тест (Quiz)
+        </Button>
+        <Button
+          className="rounded-xl border border-line bg-card py-3.5 text-xs font-bold text-white"
+          onClick={() => openTests("cards")}
+        >
+          Флеш-карточки
+        </Button>
       </section>
     </div>
   );
@@ -3193,7 +3304,25 @@ function Tests({
             }`}
             onClick={() => setFlipped((value) => !value)}
           >
-            <span className="absolute right-4 top-4 grid size-9 place-items-center rounded-full bg-white/10 text-blue-soft">
+            <span
+              className="absolute right-4 top-4 grid size-9 place-items-center rounded-full bg-white/10 text-blue-soft transition hover:bg-accent hover:text-white"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (typeof window !== "undefined" && "speechSynthesis" in window) {
+                  window.speechSynthesis.cancel();
+                  const textToSpeak = flipped ? flashcards[cardIndex][1] : flashcards[cardIndex][0];
+                  const utter = new SpeechSynthesisUtterance(textToSpeak);
+                  utter.lang =
+                    lecture.outputLanguage === "Russian"
+                      ? "ru-RU"
+                      : lecture.outputLanguage === "Kazakh"
+                        ? "kk-KZ"
+                        : "en-US";
+                  window.speechSynthesis.speak(utter);
+                }
+              }}
+              title="Озвучить карточку"
+            >
               <Icon name="speaker" className="size-4" />
             </span>
             <span className="text-xs font-bold uppercase tracking-widest text-accent-bright">
@@ -3332,13 +3461,40 @@ function Teacher({ lecture, onBack }: { lecture: Lecture; onBack: () => void }) 
   const toggleVoiceInput = () => {
     if (listening) {
       setListening(false);
+      try {
+        recognitionRef.current?.stop();
+      } catch {}
       return;
     }
-    setListening(true);
-    window.setTimeout(() => {
-      setMessage("Explain relaxation with a simple example");
+    const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRec) {
+      setMessage("Объясни главную идею лекции простыми словами");
+      return;
+    }
+    try {
+      const rec = new SpeechRec();
+      rec.continuous = false;
+      rec.interimResults = false;
+      rec.lang =
+        lecture.outputLanguage === "Russian"
+          ? "ru-RU"
+          : lecture.outputLanguage === "Kazakh"
+            ? "kk-KZ"
+            : "en-US";
+      setListening(true);
+      rec.onresult = (event: any) => {
+        const transcriptText = event.results?.[0]?.[0]?.transcript ?? "";
+        if (transcriptText) {
+          setMessage((prev) => (prev ? `${prev} ${transcriptText}` : transcriptText));
+        }
+      };
+      rec.onerror = () => setListening(false);
+      rec.onend = () => setListening(false);
+      recognitionRef.current = rec;
+      rec.start();
+    } catch {
       setListening(false);
-    }, 900);
+    }
   };
 
   useEffect(() => {
@@ -3509,17 +3665,28 @@ const defaultLecture: Lecture = {
   sourceType: "recording",
 };
 
-function Library({ onOpen }: { onOpen: (row: RecordingRow) => Promise<void> }) {
+function Library({
+  onOpen,
+  onRecordNew,
+}: {
+  onOpen: (row: RecordingRow) => Promise<void>;
+  onRecordNew: () => void;
+}) {
   const [rows, setRows] = useState<RecordingRow[] | null>(null);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [filterQuery, setFilterQuery] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const [audioUrls, setAudioUrls] = useState<Record<string, string>>({});
 
   const load = async () => {
     try {
       setError("");
       setRows(await listRecordings());
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load your recordings.");
+      setError(err instanceof Error ? err.message : "Не удалось загрузить библиотеку.");
       setRows([]);
     }
   };
@@ -3537,14 +3704,41 @@ function Library({ onOpen }: { onOpen: (row: RecordingRow) => Promise<void> }) {
     }
   };
 
+  const saveTitle = async (row: RecordingRow) => {
+    const clean = editingTitle.trim() || "Лекция без названия";
+    setEditingId(null);
+    setRows((current) => current?.map((item) => (item.id === row.id ? { ...item, title: clean } : item)) ?? null);
+    try {
+      await updateRecording(row.id, { title: clean });
+    } catch {}
+  };
+
+  const toggleAudio = async (row: RecordingRow) => {
+    if (!row.audio_path) return;
+    if (playingId === row.id) {
+      setPlayingId(null);
+      return;
+    }
+    if (!audioUrls[row.id]) {
+      try {
+        const url = await getSignedAudioUrl(row.audio_path);
+        setAudioUrls((prev) => ({ ...prev, [row.id]: url }));
+      } catch {
+        setError("Не удалось получить ссылку на аудиозапись.");
+        return;
+      }
+    }
+    setPlayingId(row.id);
+  };
+
   const remove = async (row: RecordingRow) => {
-    if (!window.confirm(`Delete “${row.title ?? "recording"}”? This cannot be undone.`)) return;
+    if (!window.confirm(`Удалить «${row.title ?? "лекцию"}»? Это действие нельзя отменить.`)) return;
     setBusyId(row.id);
     try {
       await deleteRecording(row);
       setRows((current) => current?.filter((item) => item.id !== row.id) ?? null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not delete the recording.");
+      setError(err instanceof Error ? err.message : "Не удалось удалить запись.");
     } finally {
       setBusyId(null);
     }
@@ -3553,46 +3747,154 @@ function Library({ onOpen }: { onOpen: (row: RecordingRow) => Promise<void> }) {
   const length = (seconds: number | null) =>
     seconds == null ? "" : `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 
+  const filteredRows = (rows ?? []).filter((r) => {
+    const q = filterQuery.trim().toLowerCase();
+    if (!q) return true;
+    return `${r.title ?? ""} ${r.transcript ?? ""}`.toLowerCase().includes(q);
+  });
+
   return (
     <div className="page-enter px-5">
-      <TopBar subtitle="Only you can see these" title="My Library" />
+      <TopBar
+        subtitle={`Сохранено лекций: ${rows?.length ?? 0}`}
+        title="Моя библиотека"
+        action={
+          <Button
+            className="rounded-xl bg-accent px-3 py-2 text-xs font-bold text-white shadow-glow"
+            onClick={onRecordNew}
+          >
+            + Записать
+          </Button>
+        }
+      />
+
+      <div className="mb-4 flex items-center gap-3 rounded-2xl border border-line bg-card px-4 py-3">
+        <Icon name="search" className="size-4 text-copy-muted" />
+        <Input
+          className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-copy-dim"
+          onChange={(e) => setFilterQuery(e.target.value)}
+          placeholder="Поиск по названию или тексту лекции..."
+          value={filterQuery}
+        />
+        {filterQuery && (
+          <Button className="text-xs font-bold text-copy-muted" onClick={() => setFilterQuery("")}>
+            ✕
+          </Button>
+        )}
+      </div>
+
       {error && (
         <p className="mb-4 rounded-xl border border-red/30 bg-red/10 p-3 text-xs leading-5 text-red">{error}</p>
       )}
-      {rows === null && <p className="text-sm text-copy-muted">Loading…</p>}
+      {rows === null && <p className="text-sm text-copy-muted">Загрузка ваших лекций…</p>}
       {rows?.length === 0 && !error && (
-        <p className="rounded-card border border-line bg-card p-5 text-sm leading-6 text-copy-muted">
-          No lectures yet. Record or upload one and it will appear here.
-        </p>
+        <div className="rounded-card border border-line bg-card p-6 text-center">
+          <p className="text-sm leading-6 text-copy-muted">
+            В библиотеке пока нет лекций. Запишите живую лекцию или загрузите аудио/PDF-файл!
+          </p>
+          <Button
+            className="mt-4 rounded-xl bg-gradient-to-r from-accent to-purple px-5 py-3 text-xs font-bold text-white shadow-glow"
+            onClick={onRecordNew}
+          >
+            Записать первую лекцию
+          </Button>
+        </div>
       )}
       <div className="space-y-3">
-        {rows?.map((row) => (
-          <section className="rounded-card border border-line bg-card p-4" key={row.id}>
-            <div className="text-sm font-bold text-white">{row.title ?? "Untitled"}</div>
-            <div className="mt-1 text-xs text-copy-muted">
-              {row.created_at ? new Date(row.created_at).toLocaleString() : ""}
-              {row.duration != null ? ` · ${length(row.duration)}` : ""}
-              {row.transcript ? " · transcript" : ""}
-              {row.summary ? " · summary" : ""}
-            </div>
-            <div className="mt-3 grid grid-cols-2 gap-3">
-              <Button
-                className="rounded-xl bg-accent py-3 text-xs font-bold text-white disabled:opacity-50"
-                disabled={busyId === row.id}
-                onClick={() => open(row)}
-              >
-                Open
-              </Button>
-              <Button
-                className="rounded-xl border border-red/25 bg-red/10 py-3 text-xs font-bold text-red disabled:opacity-50"
-                disabled={busyId === row.id}
-                onClick={() => remove(row)}
-              >
-                Delete
-              </Button>
-            </div>
-          </section>
-        ))}
+        {filteredRows.map((row) => {
+          const hasSum = hasJsonContent(row.summary);
+          const hasStu = hasJsonContent(row.study);
+          return (
+            <section className="rounded-card border border-line bg-card p-4" key={row.id}>
+              <div className="flex items-start justify-between gap-2">
+                {editingId === row.id ? (
+                  <div className="flex flex-1 items-center gap-2">
+                    <Input
+                      autoFocus
+                      className="min-w-0 flex-1 rounded-xl border border-accent bg-elevated px-3 py-1.5 text-sm font-bold text-white outline-none"
+                      onChange={(e) => setEditingTitle(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && void saveTitle(row)}
+                      value={editingTitle}
+                    />
+                    <Button
+                      className="rounded-lg bg-accent px-3 py-1.5 text-xs font-bold text-white"
+                      onClick={() => void saveTitle(row)}
+                    >
+                      ОК
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-bold text-white">{row.title ?? "Без названия"}</div>
+                    <div className="mt-1 text-xs text-copy-muted">
+                      {row.created_at ? new Date(row.created_at).toLocaleString("ru-RU") : ""}
+                      {row.duration != null ? ` · ${length(row.duration)}` : ""}
+                    </div>
+                  </div>
+                )}
+                {editingId !== row.id && (
+                  <Button
+                    className="rounded-lg border border-line bg-elevated px-2.5 py-1 text-mini font-semibold text-copy-muted hover:text-white"
+                    onClick={() => {
+                      setEditingId(row.id);
+                      setEditingTitle(row.title ?? "");
+                    }}
+                    title="Переименовать"
+                  >
+                    Изм.
+                  </Button>
+                )}
+              </div>
+
+              <div className="mt-2.5 flex flex-wrap gap-1.5">
+                {row.transcript && (
+                  <span className="rounded-full bg-elevated px-2.5 py-0.5 text-mini font-semibold text-copy-muted">
+                    Транскрипт
+                  </span>
+                )}
+                {hasSum && (
+                  <span className="rounded-full bg-accent-muted px-2.5 py-0.5 text-mini font-bold text-accent-bright">
+                    ИИ-конспект
+                  </span>
+                )}
+                {hasStu && (
+                  <span className="rounded-full bg-purple/15 px-2.5 py-0.5 text-mini font-bold text-purple-light">
+                    Квиз и карточки
+                  </span>
+                )}
+                {row.audio_path && (
+                  <Button
+                    className="rounded-full bg-green/10 px-2.5 py-0.5 text-mini font-bold text-green"
+                    onClick={() => void toggleAudio(row)}
+                  >
+                    {playingId === row.id ? "Скрыть плеер" : "▶ Слушать аудио"}
+                  </Button>
+                )}
+              </div>
+
+              {playingId === row.id && audioUrls[row.id] && (
+                <Audio className="mt-3 w-full" controls src={audioUrls[row.id]} />
+              )}
+
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <Button
+                  className="rounded-xl bg-accent py-3 text-xs font-bold text-white disabled:opacity-50"
+                  disabled={busyId === row.id}
+                  onClick={() => open(row)}
+                >
+                  Открыть конспект
+                </Button>
+                <Button
+                  className="rounded-xl border border-red/25 bg-red/10 py-3 text-xs font-bold text-red disabled:opacity-50"
+                  disabled={busyId === row.id}
+                  onClick={() => remove(row)}
+                >
+                  Удалить
+                </Button>
+              </div>
+            </section>
+          );
+        })}
       </div>
     </div>
   );
@@ -3604,6 +3906,7 @@ export default function App() {
   const [processed, setProcessed] = useState(false);
   const [testMode, setTestMode] = useState<"quiz" | "cards">("quiz");
   const [testsEntry, setTestsEntry] = useState(0);
+  const [presetSubject, setPresetSubject] = useState<string>("");
 
   useEffect(() => {
     const audioUrl = selectedLecture.audioUrl;
@@ -3644,14 +3947,16 @@ export default function App() {
       }
     }
 
+    const prefLang = getInitialProfile().defaultLang;
+    const subj = presetSubject || "General Subject";
     const media = fileObj && !isPdf ? fileObj : undefined;
     setSelectedLecture({
-      title: sourceFile ? sourceFile.replace(/\.[^/.]+$/, "") : "Uploaded Lecture",
-      subject: "General Subject",
-      professor: "AI Assistant",
+      title: sourceFile ? sourceFile.replace(/\.[^/.]+$/, "") : subj !== "General Subject" ? `${subj} · Лекция` : "Uploaded Lecture",
+      subject: subj,
+      professor: "Преподаватель",
       date: new Date().toISOString().split("T")[0],
-      sourceLanguage: "English",
-      outputLanguage: "Kazakh",
+      sourceLanguage: "Russian",
+      outputLanguage: prefLang,
       sourceType,
       sourceFile,
       transcript: fileTranscript,
@@ -3659,19 +3964,22 @@ export default function App() {
       audioUrl: media ? URL.createObjectURL(media) : undefined,
       audioMimeType: media?.type,
     });
+    setPresetSubject("");
     setProcessed(false);
     setScreen("lecture-info");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const continueRecordedLecture = (audio: { blob: Blob; duration: number; mimeType: string; transcript: string }) => {
+    const prefLang = getInitialProfile().defaultLang;
+    const subj = presetSubject || "General Subject";
     setSelectedLecture({
-      title: `Lecture ${new Date().toLocaleDateString()}`,
-      subject: "General Subject",
-      professor: "AI Assistant",
+      title: subj !== "General Subject" ? `${subj} (${new Date().toLocaleDateString("ru-RU")})` : `Лекция ${new Date().toLocaleDateString("ru-RU")}`,
+      subject: subj,
+      professor: "Преподаватель",
       date: new Date().toISOString().split("T")[0],
-      sourceLanguage: "English",
-      outputLanguage: "Kazakh",
+      sourceLanguage: "Russian",
+      outputLanguage: prefLang,
       sourceType: "recording",
       sourceFile: "Lecture Recording",
       transcript: audio.transcript,
@@ -3680,6 +3988,7 @@ export default function App() {
       audioDuration: audio.duration,
       audioMimeType: audio.mimeType,
     });
+    setPresetSubject("");
     setProcessed(false);
     setScreen("lecture-info");
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -3760,12 +4069,21 @@ export default function App() {
   return (
     <div className="min-h-screen bg-page">
       <div className="relative mx-auto min-h-screen max-w-md overflow-x-hidden bg-app pb-page shadow-phone">
-        {screen === "home" && <Home navigate={navigate} openTests={openTests} />}
+        {screen === "home" && (
+          <Home
+            navigate={navigate}
+            onOpenRecording={openRecording}
+            onStartSubjectRecord={(subj) => {
+              setPresetSubject(subj);
+              navigate("record");
+            }}
+            openTests={openTests}
+          />
+        )}
         {screen === "record" && (
           <Recording
             onRecordingContinue={continueRecordedLecture}
             onUploadReady={(sourceFile, file) => beginLectureInformation("upload", sourceFile, file)}
-
           />
         )}
         {screen === "lecture-info" && (
@@ -3803,7 +4121,7 @@ export default function App() {
             onLectureUpdate={updateLecture}
           />
         )}
-        {screen === "library" && <Library onOpen={openRecording} />}
+        {screen === "library" && <Library onOpen={openRecording} onRecordNew={() => navigate("record")} />}
         {screen === "teacher" && <Teacher lecture={selectedLecture} onBack={() => navigate("summary")} />}
         <BottomNav onNavigate={navigate} screen={screen} />
       </div>

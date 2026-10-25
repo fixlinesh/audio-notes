@@ -3,68 +3,210 @@ import { supabase } from "./lib/supabase";
 
 export default function Auth() {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [fullName, setFullName] = useState("");
+  const [university, setUniversity] = useState("Astana IT University");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPass, setShowPass] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [isSuccess, setIsSuccess] = useState(false);
 
   const submit = async () => {
     setMessage("");
-    if (!email || password.length < 6) {
-      setMessage("Enter an email and a password of at least 6 characters.");
+    setIsSuccess(false);
+    if (!email.trim() || password.length < 6) {
+      setMessage("Введите корректный Email и пароль не менее 6 символов.");
       return;
     }
     setBusy(true);
-    if (mode === "signup") {
-      const { data, error } = await supabase.auth.signUp({ email, password });
-      if (error) setMessage(error.message);
-      else if (!data.session) setMessage("Check your email to confirm your account, then sign in.");
-    } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) setMessage(error.message);
+    try {
+      if (mode === "signup") {
+        const cleanName = fullName.trim() || email.trim().split("@")[0] || "Студент";
+        const cleanUni = university.trim() || "Astana IT University";
+        const { data, error } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+          options: {
+            data: {
+              full_name: cleanName,
+              university: cleanUni,
+              major: "ICT · Computer Science",
+              avatar_theme: "aurora",
+              default_lang: "Russian",
+            },
+          },
+        });
+        if (error) {
+          setMessage(error.message);
+        } else {
+          try {
+            localStorage.setItem(
+              "leasy_profile_cache",
+              JSON.stringify({
+                userName: cleanName,
+                userEmail: email.trim(),
+                memberSince: new Date().toLocaleDateString("ru-RU", { month: "short", year: "numeric" }),
+                university: cleanUni,
+                major: "ICT · Computer Science",
+                avatarTheme: "aurora",
+                avatarUrl: "",
+                defaultLang: "Russian",
+                autoTranscribe: true,
+                defaultNoiseFilter: true,
+                voiceTts: true,
+              }),
+            );
+          } catch {}
+          if (!data.session) {
+            setIsSuccess(true);
+            setMessage("Аккаунт создан! Проверьте почту для подтверждения или войдите.");
+          }
+        }
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+        if (error) {
+          setMessage(
+            error.message.includes("Invalid login")
+              ? "Неверный Email или пароль. Проверьте данные или зарегистрируйтесь."
+              : error.message,
+          );
+        }
+      }
+    } finally {
+      setBusy(false);
     }
-    setBusy(false);
   };
 
   return (
     <div className="min-h-screen bg-page">
-      <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center bg-app px-6">
-        <h1 className="text-2xl font-bold text-white">{mode === "signin" ? "Sign in" : "Create account"}</h1>
-        <p className="mt-2 text-sm text-copy-muted">Your recordings are private and only visible to you.</p>
-        <input
-          className="mt-6 w-full rounded-2xl border border-line bg-card p-4 text-sm text-white outline-none"
-          type="email"
-          placeholder="Email"
-          autoComplete="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-        <input
-          className="mt-3 w-full rounded-2xl border border-line bg-card p-4 text-sm text-white outline-none"
-          type="password"
-          placeholder="Password (min 6 characters)"
-          autoComplete={mode === "signin" ? "current-password" : "new-password"}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && submit()}
-        />
-        {message && <div className="mt-3 text-xs font-semibold text-copy-muted">{message}</div>}
-        <button
-          className="mt-5 w-full rounded-xl bg-accent py-4 text-sm font-bold text-white disabled:opacity-60"
-          disabled={busy}
-          onClick={submit}
-        >
-          {busy ? "Please wait…" : mode === "signin" ? "Sign in" : "Sign up"}
-        </button>
-        <button
-          className="mt-4 text-sm font-semibold text-copy-muted"
-          onClick={() => {
-            setMessage("");
-            setMode(mode === "signin" ? "signup" : "signin");
-          }}
-        >
-          {mode === "signin" ? "No account? Sign up" : "Have an account? Sign in"}
-        </button>
+      <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center bg-app px-6 py-10 shadow-phone">
+        {/* Brand Header */}
+        <div className="text-center">
+          <div className="mx-auto grid size-16 place-items-center rounded-2xl bg-gradient-to-br from-accent to-purple text-white shadow-glow">
+            <svg className="size-8" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" viewBox="0 0 24 24">
+              <rect x="9" y="2" width="6" height="12" rx="3" />
+              <path d="M5 10a7 7 0 0 0 14 0M12 17v4M9 21h6" />
+            </svg>
+          </div>
+          <h1 className="mt-4 text-2xl font-bold tracking-tight text-white">L-easy · Audio Notes</h1>
+          <p className="mt-1.5 text-xs leading-5 text-copy-muted">
+            Запись лекций, ИИ-конспекты, тесты и персональный преподаватель на базе Gemini
+          </p>
+        </div>
+
+        {/* Mode Switcher */}
+        <div className="mt-7 grid grid-cols-2 rounded-xl border border-line bg-card p-1">
+          <button
+            className={`rounded-lg py-2.5 text-xs font-bold transition ${
+              mode === "signin" ? "bg-accent text-white shadow-glow" : "text-copy-muted"
+            }`}
+            onClick={() => {
+              setMessage("");
+              setMode("signin");
+            }}
+            type="button"
+          >
+            Вход в аккаунт
+          </button>
+          <button
+            className={`rounded-lg py-2.5 text-xs font-bold transition ${
+              mode === "signup" ? "bg-accent text-white shadow-glow" : "text-copy-muted"
+            }`}
+            onClick={() => {
+              setMessage("");
+              setMode("signup");
+            }}
+            type="button"
+          >
+            Регистрация
+          </button>
+        </div>
+
+        {/* Auth Form Card */}
+        <div className="mt-5 rounded-card border border-line bg-card p-5 space-y-3.5">
+          {mode === "signup" && (
+            <>
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-copy-muted">Ваше имя и фамилия</label>
+                <input
+                  className="w-full rounded-xl border border-line bg-elevated px-4 py-3 text-sm text-white outline-none placeholder:text-copy-dim"
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Например: Ералы Амангельдинов"
+                  type="text"
+                  value={fullName}
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-copy-muted">Университет / Колледж</label>
+                <input
+                  className="w-full rounded-xl border border-line bg-elevated px-4 py-3 text-sm text-white outline-none placeholder:text-copy-dim"
+                  onChange={(e) => setUniversity(e.target.value)}
+                  placeholder="Astana IT University"
+                  type="text"
+                  value={university}
+                />
+              </div>
+            </>
+          )}
+
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold text-copy-muted">Email</label>
+            <input
+              autoComplete="email"
+              className="w-full rounded-xl border border-line bg-elevated px-4 py-3 text-sm text-white outline-none placeholder:text-copy-dim"
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="student@astanait.edu.kz"
+              type="email"
+              value={email}
+            />
+          </div>
+
+          <div>
+            <div className="mb-1.5 flex items-center justify-between">
+              <label className="text-xs font-semibold text-copy-muted">Пароль</label>
+              <button
+                className="text-mini font-semibold text-accent-bright"
+                onClick={() => setShowPass((v) => !v)}
+                type="button"
+              >
+                {showPass ? "Скрыть" : "Показать"}
+              </button>
+            </div>
+            <input
+              autoComplete={mode === "signin" ? "current-password" : "new-password"}
+              className="w-full rounded-xl border border-line bg-elevated px-4 py-3 text-sm text-white outline-none placeholder:text-copy-dim"
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && submit()}
+              placeholder="Минимум 6 символов"
+              type={showPass ? "text" : "password"}
+              value={password}
+            />
+          </div>
+
+          {message && (
+            <div
+              className={`rounded-xl border p-3 text-xs font-semibold ${
+                isSuccess ? "border-green/30 bg-green/10 text-green" : "border-red/30 bg-red/10 text-red"
+              }`}
+            >
+              {message}
+            </div>
+          )}
+
+          <button
+            className="w-full rounded-xl bg-gradient-to-r from-accent to-purple py-3.5 text-sm font-bold text-white shadow-glow disabled:opacity-50"
+            disabled={busy}
+            onClick={submit}
+            type="button"
+          >
+            {busy ? "Подождите…" : mode === "signin" ? "Войти в L-easy" : "Создать аккаунт"}
+          </button>
+        </div>
+
+        <p className="mt-5 text-center text-mini text-copy-dim">
+          🔒 Все аудиозаписи и конспекты защищены политиками Supabase Row-Level Security и доступны только вам.
+        </p>
       </div>
     </div>
   );
