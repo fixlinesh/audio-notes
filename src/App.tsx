@@ -359,12 +359,20 @@ function BottomNav({
   );
 }
 
-const schedule = [
-  ["10:00 AM", "Math Analysis", "Room 302", "In 24 min"],
-  ["12:30 PM", "Computer Science 101", "Auditorium B", "Later"],
-  ["3:00 PM", "Academic English", "Online", "Later"],
-  ["Tomorrow", "Linear Algebra", "Room 208", "9:00 AM"],
-  ["Tomorrow", "Research Methods", "Online", "1:30 PM"],
+type ScheduleItem = {
+  id: string;
+  time: string;
+  subject: string;
+  place: string;
+  status: string;
+};
+
+const defaultSchedule: ScheduleItem[] = [
+  { id: "1", time: "10:00", subject: "Math Analysis", place: "Room 302", status: "Сегодня" },
+  { id: "2", time: "12:30", subject: "Computer Science 101", place: "Auditorium B", status: "Сегодня" },
+  { id: "3", time: "15:00", subject: "Academic English", place: "Online", status: "Сегодня" },
+  { id: "4", time: "09:00", subject: "Linear Algebra", place: "Room 208", status: "Завтра" },
+  { id: "5", time: "13:30", subject: "Research Methods", place: "Online", status: "Завтра" },
 ];
 
 const avatarThemes: Record<string, string> = {
@@ -414,6 +422,23 @@ function Home({
   const [newPassword, setNewPassword] = useState("");
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
+  const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>(() => {
+    try {
+      const cached = localStorage.getItem("leasy_schedule");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed as ScheduleItem[];
+      }
+    } catch {}
+    return defaultSchedule;
+  });
+  const [editingScheduleId, setEditingScheduleId] = useState<string | null>(null);
+  const [schedTime, setSchedTime] = useState("10:00");
+  const [schedSubject, setSchedSubject] = useState("");
+  const [schedPlace, setSchedPlace] = useState("");
+  const [schedStatus, setSchedStatus] = useState("Сегодня");
+  const [scheduleNotice, setScheduleNotice] = useState("");
+
   const [libraryCount, setLibraryCount] = useState<number | null>(null);
   const [summariesCount, setSummariesCount] = useState(0);
   const [quizzesCount, setQuizzesCount] = useState(0);
@@ -449,6 +474,12 @@ function Home({
       if (typeof meta.auto_transcribe === "boolean") setAutoTranscribe(meta.auto_transcribe);
       if (typeof meta.default_noise_filter === "boolean") setDefaultNoiseFilter(meta.default_noise_filter);
       if (typeof meta.voice_tts === "boolean") setVoiceTts(meta.voice_tts);
+      if (Array.isArray(meta.schedule) && meta.schedule.length > 0) {
+        setScheduleItems(meta.schedule as ScheduleItem[]);
+        try {
+          localStorage.setItem("leasy_schedule", JSON.stringify(meta.schedule));
+        } catch {}
+      }
       if (u.created_at) {
         setMemberSince(new Date(u.created_at).toLocaleDateString("ru-RU", { month: "short", year: "numeric" }));
       }
@@ -548,6 +579,59 @@ function Home({
       setSavingProfile(false);
     }
   };
+  const persistSchedule = async (nextList: ScheduleItem[], msg: string) => {
+    setScheduleItems(nextList);
+    try {
+      localStorage.setItem("leasy_schedule", JSON.stringify(nextList));
+    } catch {}
+    setScheduleNotice(msg);
+    try {
+      await supabase.auth.updateUser({ data: { schedule: nextList } });
+    } catch {}
+  };
+
+  const startEditScheduleItem = (item: ScheduleItem) => {
+    setEditingScheduleId(item.id);
+    setSchedTime(item.time);
+    setSchedSubject(item.subject);
+    setSchedPlace(item.place);
+    setSchedStatus(item.status);
+    setScheduleNotice("");
+  };
+
+  const resetScheduleForm = () => {
+    setEditingScheduleId(null);
+    setSchedTime("10:00");
+    setSchedSubject("");
+    setSchedPlace("");
+    setSchedStatus("Сегодня");
+  };
+
+  const saveScheduleItem = () => {
+    if (!schedSubject.trim()) {
+      setScheduleNotice("Введите название предмета.");
+      return;
+    }
+    const cleanItem: ScheduleItem = {
+      id: editingScheduleId ?? String(Date.now()),
+      time: schedTime.trim() || "10:00",
+      subject: schedSubject.trim(),
+      place: schedPlace.trim() || "Аудитория",
+      status: schedStatus.trim() || "Сегодня",
+    };
+    const nextList = editingScheduleId
+      ? scheduleItems.map((it) => (it.id === editingScheduleId ? cleanItem : it))
+      : [...scheduleItems, cleanItem];
+    resetScheduleForm();
+    void persistSchedule(nextList, editingScheduleId ? "Занятие обновлено!" : "Занятие добавлено в расписание!");
+  };
+
+  const deleteScheduleItem = (id: string) => {
+    const nextList = scheduleItems.filter((it) => it.id !== id);
+    if (editingScheduleId === id) resetScheduleForm();
+    void persistSchedule(nextList, "Занятие удалено.");
+  };
+
   const searchableItems = [
     { title: "Graph Algorithms", detail: "Notes · CS101", screen: "notes" as Screen },
     { title: "Practice Quizzes", detail: "3 pending", screen: "tests" as Screen },
@@ -616,32 +700,50 @@ function Home({
           <Heading level={2} className="text-lg font-bold text-white">
             Today’s Schedule
           </Heading>
-          <Button className="text-xs font-semibold text-accent-bright" onClick={() => setPanel("schedule")}>
-            View all
+          <Button
+            className="rounded-lg bg-accent-muted px-3 py-1.5 text-xs font-bold text-accent-bright"
+            onClick={() => {
+              setScheduleNotice("");
+              setPanel("schedule");
+            }}
+          >
+            Изменить · Все ({scheduleItems.length})
           </Button>
         </div>
         <div className="space-y-3">
-          {schedule.slice(0, 3).map(([time, subject, place, status], index) => (
+          {scheduleItems.length === 0 && (
+            <div className="rounded-2xl border border-line bg-card p-5 text-center text-xs text-copy-muted">
+              В расписании пока нет пар. Нажмите «Изменить», чтобы добавить свои предметы.
+            </div>
+          )}
+          {scheduleItems.slice(0, 3).map((item, index) => (
             <div
               className={`flex items-center gap-3 rounded-2xl border p-4 ${
                 index === 0 ? "border-accent/40 bg-accent-muted" : "border-line bg-card"
               }`}
-              key={subject}
+              key={item.id}
             >
-              <div className="w-16">
-                <div className="text-xs font-bold text-white">{time}</div>
+              <div className="w-16 shrink-0">
+                <div className="text-xs font-bold text-white">{item.time}</div>
                 <div className={`mt-1 text-mini ${index === 0 ? "text-accent-bright" : "text-copy-dim"}`}>
-                  {status}
+                  {item.status}
                 </div>
               </div>
               <div className="h-9 w-px bg-line" />
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-semibold text-white">{subject}</div>
-                <div className="mt-1 text-xs text-copy-muted">{place}</div>
-              </div>
               <Button
-                aria-label={`Record ${subject}`}
-                className={`grid size-10 place-items-center rounded-xl ${
+                className="min-w-0 flex-1 text-left"
+                onClick={() => {
+                  startEditScheduleItem(item);
+                  setPanel("schedule");
+                }}
+                title="Нажмите, чтобы изменить предмет"
+              >
+                <div className="truncate text-sm font-semibold text-white">{item.subject}</div>
+                <div className="mt-1 text-xs text-copy-muted">{item.place}</div>
+              </Button>
+              <Button
+                aria-label={`Record ${item.subject}`}
+                className={`grid size-10 shrink-0 place-items-center rounded-xl ${
                   index === 0 ? "bg-accent text-white shadow-glow" : "bg-elevated text-copy-muted"
                 }`}
                 onClick={() => navigate("record")}
@@ -1074,28 +1176,130 @@ function Home({
       )}
 
       {panel === "schedule" && (
-        <OverlayPanel title="Full Schedule" subtitle="This week" onClose={() => setPanel(null)}>
-          <div className="space-y-3 overflow-y-auto">
-            {schedule.map(([time, subject, place, status]) => (
-              <div className="flex items-center gap-3 rounded-2xl border border-line bg-card p-4" key={`${time}-${subject}`}>
-                <div className="w-16 text-xs font-bold text-white">{time}</div>
-                <div className="h-9 w-px bg-line" />
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-semibold text-white">{subject}</div>
-                  <div className="mt-1 text-xs text-copy-muted">{place} · {status}</div>
-                </div>
-                <Button
-                  aria-label={`Record ${subject}`}
-                  className="grid size-10 place-items-center rounded-xl bg-elevated text-accent-bright"
-                  onClick={() => {
-                    setPanel(null);
-                    navigate("record");
-                  }}
-                >
-                  <Icon name="mic" className="size-4" />
-                </Button>
+        <OverlayPanel
+          title="Расписание занятий"
+          subtitle="Добавляйте и редактируйте свои пары"
+          onClose={() => {
+            resetScheduleForm();
+            setPanel(null);
+          }}
+        >
+          {/* Форма добавления / редактирования занятия */}
+          <section className="rounded-card border border-line bg-card p-4">
+            <div className="flex items-center justify-between">
+              <div className="text-xs font-bold uppercase tracking-wider text-accent-bright">
+                {editingScheduleId ? "Редактирование занятия" : "Добавить новое занятие"}
               </div>
-            ))}
+              {editingScheduleId && (
+                <Button
+                  className="text-xs font-semibold text-copy-muted"
+                  onClick={resetScheduleForm}
+                >
+                  Отмена
+                </Button>
+              )}
+            </div>
+
+            <div className="mt-3 space-y-2.5">
+              <Input
+                className="w-full rounded-xl border border-line bg-elevated px-3.5 py-2.5 text-sm text-white outline-none placeholder:text-copy-dim"
+                onChange={(e) => setSchedSubject(e.target.value)}
+                placeholder="Название предмета (напр. Database Systems)"
+                value={schedSubject}
+              />
+              <div className="grid grid-cols-3 gap-2">
+                <Input
+                  className="rounded-xl border border-line bg-elevated px-3 py-2.5 text-xs font-semibold text-white outline-none placeholder:text-copy-dim"
+                  onChange={(e) => setSchedTime(e.target.value)}
+                  placeholder="Время (10:00)"
+                  value={schedTime}
+                />
+                <Input
+                  className="rounded-xl border border-line bg-elevated px-3 py-2.5 text-xs text-white outline-none placeholder:text-copy-dim"
+                  onChange={(e) => setSchedPlace(e.target.value)}
+                  placeholder="Кабинет / Online"
+                  value={schedPlace}
+                />
+                <Select
+                  className="rounded-xl border border-line bg-elevated px-2.5 py-2.5 text-xs font-semibold text-white outline-none"
+                  onChange={(e) => setSchedStatus(e.target.value)}
+                  value={schedStatus}
+                >
+                  <option value="Сегодня">Сегодня</option>
+                  <option value="Завтра">Завтра</option>
+                  <option value="Понедельник">Пн</option>
+                  <option value="Вторник">Вт</option>
+                  <option value="Среда">Ср</option>
+                  <option value="Четверг">Чт</option>
+                  <option value="Пятница">Пт</option>
+                  <option value="Суббота">Сб</option>
+                </Select>
+              </div>
+              <Button
+                className="w-full rounded-xl bg-gradient-to-r from-accent to-purple py-3 text-xs font-bold text-white shadow-glow"
+                onClick={saveScheduleItem}
+              >
+                {editingScheduleId ? "Сохранить изменения" : "+ Добавить в расписание"}
+              </Button>
+            </div>
+          </section>
+
+          {scheduleNotice && (
+            <div className="mt-3 rounded-xl border border-green/25 bg-green/10 p-3 text-xs font-semibold text-green">
+              ✓ {scheduleNotice}
+            </div>
+          )}
+
+          {/* Список занятий */}
+          <div className="mt-4 space-y-2.5">
+            {scheduleItems.map((item) => {
+              const isEditing = editingScheduleId === item.id;
+              return (
+                <div
+                  className={`flex items-center gap-3 rounded-2xl border p-3.5 transition ${
+                    isEditing ? "border-accent bg-accent-muted" : "border-line bg-card"
+                  }`}
+                  key={item.id}
+                >
+                  <div className="w-14 shrink-0">
+                    <div className="text-xs font-bold text-white">{item.time}</div>
+                    <div className="mt-0.5 text-mini text-accent-bright">{item.status}</div>
+                  </div>
+                  <div className="h-8 w-px bg-line" />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-semibold text-white">{item.subject}</div>
+                    <div className="mt-0.5 text-xs text-copy-muted">{item.place}</div>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <Button
+                      className="rounded-lg border border-line bg-elevated px-2.5 py-2 text-mini font-bold text-white"
+                      onClick={() => startEditScheduleItem(item)}
+                      title="Редактировать"
+                    >
+                      Изм.
+                    </Button>
+                    <Button
+                      className="rounded-lg border border-red/25 bg-red/10 px-2.5 py-2 text-mini font-bold text-red"
+                      onClick={() => deleteScheduleItem(item.id)}
+                      title="Удалить"
+                    >
+                      ✕
+                    </Button>
+                    <Button
+                      aria-label={`Record ${item.subject}`}
+                      className="grid size-9 place-items-center rounded-xl bg-accent text-white"
+                      onClick={() => {
+                        setPanel(null);
+                        navigate("record");
+                      }}
+                      title="Записать лекцию"
+                    >
+                      <Icon name="mic" className="size-4" />
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </OverlayPanel>
       )}
