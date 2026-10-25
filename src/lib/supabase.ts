@@ -9,11 +9,12 @@ export const AUDIO_BUCKET = "audio";
 
 export type RecordingRow = {
   id: string;
+  user_id?: string | null;
   title: string | null;
   audio_path: string | null;
   transcript: string | null;
-  summary: string | null;
-  study: string | null;
+  summary: unknown;
+  study: unknown;
   duration: number | null;
   created_at: string | null;
 };
@@ -50,7 +51,7 @@ export async function saveMedia(
   const seconds = Number.isFinite(opts.duration) ? Math.max(0, Math.round(opts.duration as number)) : null;
   const ins = await supabase
     .from("recordings")
-    .insert({ title: opts.title, audio_path: path, duration: seconds })
+    .insert({ user_id: uid, title: opts.title, audio_path: path, duration: seconds })
     .select()
     .single();
   if (ins.error) {
@@ -107,9 +108,13 @@ export async function authFetch(input: string, body: unknown) {
 
 /** Row for a lecture that has no audio (e.g. a PDF or a typed transcript). */
 export async function createLectureRow(opts: { title: string; transcript?: string }) {
+  const { data: userData } = await supabase.auth.getUser();
+  const uid = userData.user?.id;
+  if (!uid) return { error: "You are not signed in." } as { row?: RecordingRow; error?: string };
+
   const { data, error } = await supabase
     .from("recordings")
-    .insert({ title: opts.title, transcript: opts.transcript ?? null })
+    .insert({ user_id: uid, title: opts.title, transcript: opts.transcript ?? null })
     .select()
     .single();
   if (error) {

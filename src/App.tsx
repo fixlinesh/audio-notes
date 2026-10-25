@@ -1662,11 +1662,13 @@ function LectureSummary({
   onBack,
   navigate,
   openTests,
+  onLectureUpdate,
 }: {
   lecture: Lecture;
   onBack: () => void;
   navigate: (screen: Screen) => void;
   openTests: (mode: "quiz" | "cards") => void;
+  onLectureUpdate: (patch: Partial<Lecture>) => void;
 }) {
   const [version, setVersion] = useState<"original" | "simplified">("original");
   const [language, setLanguage] = useState<Language>(lecture.outputLanguage);
@@ -1719,6 +1721,7 @@ function LectureSummary({
 
         const data = (await response.json()) as SummaryData;
         setSummaryData(data);
+        onLectureUpdate({ summary: data, summaryLanguage: language });
         if (lecture.recordingId) {
           void updateRecording(lecture.recordingId, { summary: JSON.stringify({ language, data }) });
         }
@@ -2848,13 +2851,33 @@ export default function App() {
   const openRecording = async (row: RecordingRow) => {
     let saved: { language?: Language; data?: SummaryData } | null = null;
     try {
-      saved = row.summary ? JSON.parse(row.summary) : null;
+      const rawSummary = typeof row.summary === "string" ? JSON.parse(row.summary) : row.summary;
+      if (rawSummary && typeof rawSummary === "object") {
+        if ("data" in rawSummary && rawSummary.data) {
+          saved = rawSummary as { language?: Language; data?: SummaryData };
+        } else if ("explanation" in rawSummary || "simplified" in rawSummary || "keyPoints" in rawSummary) {
+          const r = rawSummary as Partial<SummaryData>;
+          saved = {
+            language: "English",
+            data: {
+              explanation: r.explanation ?? r.simplified ?? "",
+              simplified: r.simplified ?? r.explanation ?? "",
+              keyPoints: Array.isArray(r.keyPoints) ? r.keyPoints : [],
+              terms: Array.isArray(r.terms) ? r.terms : [],
+              example: r.example ?? "",
+            },
+          };
+        }
+      }
     } catch {
       saved = null;
     }
     let savedStudy: { language?: Language; data?: StudyData } | null = null;
     try {
-      savedStudy = row.study ? JSON.parse(row.study) : null;
+      const rawStudy = typeof row.study === "string" ? JSON.parse(row.study) : row.study;
+      if (rawStudy && typeof rawStudy === "object" && "data" in rawStudy) {
+        savedStudy = rawStudy as { language?: Language; data?: StudyData };
+      }
     } catch {
       savedStudy = null;
     }
@@ -2920,6 +2943,7 @@ export default function App() {
             lecture={selectedLecture}
             navigate={navigate}
             onBack={() => navigate("processing")}
+            onLectureUpdate={updateLecture}
             openTests={openTests}
           />
         )}
