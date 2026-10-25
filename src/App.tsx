@@ -288,7 +288,7 @@ function OverlayPanel({
   children: ReactNode;
 }) {
   return (
-    <div className="fixed inset-0 z-50 mx-auto flex max-w-md flex-col bg-app px-5 pb-page">
+    <div className="fixed inset-0 z-50 mx-auto flex max-w-md flex-col overflow-y-auto bg-app px-5 pb-page">
       <TopBar
         title={title}
         subtitle={subtitle}
@@ -363,6 +363,25 @@ const schedule = [
   ["Tomorrow", "Research Methods", "Online", "1:30 PM"],
 ];
 
+const avatarThemes: Record<string, string> = {
+  aurora: "from-accent to-purple",
+  emerald: "from-green to-accent",
+  royal: "from-purple to-accent",
+  crimson: "from-red to-purple",
+};
+
+function hasJsonContent(val: unknown): boolean {
+  if (!val) return false;
+  if (typeof val === "string") {
+    const t = val.trim();
+    return t.length > 2 && t !== "{}" && t !== "null";
+  }
+  if (typeof val === "object") {
+    return Object.keys(val as Record<string, unknown>).length > 0;
+  }
+  return false;
+}
+
 function Home({
   navigate,
   openTests,
@@ -372,17 +391,116 @@ function Home({
 }) {
   const [panel, setPanel] = useState<"search" | "profile" | "schedule" | null>(null);
   const [query, setQuery] = useState("");
+  const [profileTab, setProfileTab] = useState<"overview" | "edit" | "security">("overview");
   const [profileFeedback, setProfileFeedback] = useState("");
+  const [profileError, setProfileError] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
+
   const [userName, setUserName] = useState("");
   const [userEmail, setUserEmail] = useState("");
+  const [memberSince, setMemberSince] = useState("");
+  const [university, setUniversity] = useState("Astana IT University");
+  const [major, setMajor] = useState("ICT · Computer Science");
+  const [avatarTheme, setAvatarTheme] = useState<string>("aurora");
+  const [defaultLang, setDefaultLang] = useState<Language>("Russian");
+  const [autoTranscribe, setAutoTranscribe] = useState(true);
+  const [defaultNoiseFilter, setDefaultNoiseFilter] = useState(true);
+  const [voiceTts, setVoiceTts] = useState(true);
+  const [newPassword, setNewPassword] = useState("");
+
   const [libraryCount, setLibraryCount] = useState<number | null>(null);
+  const [summariesCount, setSummariesCount] = useState(0);
+  const [quizzesCount, setQuizzesCount] = useState(0);
+  const [totalMinutes, setTotalMinutes] = useState(0);
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
-      setUserEmail(data.user?.email ?? "");
-      setUserName(data.user?.email?.split("@")[0] ?? "");
+      const u = data.user;
+      if (!u) return;
+      const meta = (u.user_metadata ?? {}) as Record<string, unknown>;
+      const emailPrefix = u.email?.split("@")[0] ?? "";
+      setUserEmail(u.email ?? "");
+      setUserName(String(meta.full_name || emailPrefix));
+      if (meta.university) setUniversity(String(meta.university));
+      if (meta.major) setMajor(String(meta.major));
+      if (meta.avatar_theme && typeof meta.avatar_theme === "string") setAvatarTheme(meta.avatar_theme);
+      if (meta.default_lang === "English" || meta.default_lang === "Russian" || meta.default_lang === "Kazakh") {
+        setDefaultLang(meta.default_lang);
+      }
+      if (typeof meta.auto_transcribe === "boolean") setAutoTranscribe(meta.auto_transcribe);
+      if (typeof meta.default_noise_filter === "boolean") setDefaultNoiseFilter(meta.default_noise_filter);
+      if (typeof meta.voice_tts === "boolean") setVoiceTts(meta.voice_tts);
+      if (u.created_at) {
+        setMemberSince(new Date(u.created_at).toLocaleDateString("ru-RU", { month: "short", year: "numeric" }));
+      }
     });
-    listRecordings().then((rows) => setLibraryCount(rows.length)).catch(() => setLibraryCount(0));
+    listRecordings()
+      .then((rows) => {
+        setLibraryCount(rows.length);
+        setSummariesCount(rows.filter((r) => hasJsonContent(r.summary)).length);
+        setQuizzesCount(rows.filter((r) => hasJsonContent(r.study)).length);
+        const totalSecs = rows.reduce((sum, r) => sum + (r.duration ?? 0), 0);
+        setTotalMinutes(Math.max(rows.length > 0 ? 1 : 0, Math.round(totalSecs / 60)));
+      })
+      .catch(() => setLibraryCount(0));
   }, []);
+
+  const xp = (libraryCount ?? 0) * 50 + summariesCount * 40 + quizzesCount * 60;
+  const level = Math.max(1, Math.floor(xp / 150) + 1);
+  const levelProgress = Math.min(100, Math.round(((xp % 150) / 150) * 100));
+  const avatarGradient = avatarThemes[avatarTheme] ?? avatarThemes.aurora;
+  const initials = (userName || "U")
+    .trim()
+    .split(/\s+/)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("")
+    .slice(0, 2) || "U";
+
+  const saveUserProfile = async (patch?: Record<string, unknown>, customMsg?: string) => {
+    setSavingProfile(true);
+    setProfileFeedback("");
+    setProfileError("");
+    try {
+      const payload = {
+        full_name: userName.trim() || userEmail.split("@")[0] || "Студент",
+        university: university.trim() || "Astana IT University",
+        major: major.trim() || "ICT · Computer Science",
+        avatar_theme: avatarTheme,
+        default_lang: defaultLang,
+        auto_transcribe: autoTranscribe,
+        default_noise_filter: defaultNoiseFilter,
+        voice_tts: voiceTts,
+        ...(patch ?? {}),
+      };
+      const { error } = await supabase.auth.updateUser({ data: payload });
+      if (error) throw error;
+      setProfileFeedback(customMsg ?? "Профиль успешно сохранён в облаке Supabase!");
+    } catch (err) {
+      setProfileError(err instanceof Error ? err.message : "Не удалось сохранить профиль.");
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const handlePasswordUpdate = async () => {
+    setProfileFeedback("");
+    setProfileError("");
+    if (newPassword.trim().length < 6) {
+      setProfileError("Пароль должен содержать минимум 6 символов.");
+      return;
+    }
+    setSavingProfile(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword.trim() });
+      if (error) throw error;
+      setNewPassword("");
+      setProfileFeedback("Пароль успешно обновлён!");
+    } catch (err) {
+      setProfileError(err instanceof Error ? err.message : "Ошибка при смене пароля.");
+    } finally {
+      setSavingProfile(false);
+    }
+  };
   const searchableItems = [
     { title: "Graph Algorithms", detail: "Notes · CS101", screen: "notes" as Screen },
     { title: "Practice Quizzes", detail: "3 pending", screen: "tests" as Screen },
@@ -409,10 +527,14 @@ function Home({
             </Button>
             <Button
               aria-label="Open profile menu"
-              className="grid size-10 place-items-center rounded-full bg-gradient-to-br from-accent to-purple text-sm font-bold text-white ring-2 ring-card"
-              onClick={() => setPanel("profile")}
+              className={`grid size-10 place-items-center rounded-full bg-gradient-to-br ${avatarGradient} text-xs font-bold text-white ring-2 ring-card`}
+              onClick={() => {
+                setProfileFeedback("");
+                setProfileError("");
+                setPanel("profile");
+              }}
             >
-              {userName ? userName[0].toUpperCase() : "U"}
+              {initials}
             </Button>
           </div>
         }
@@ -556,37 +678,301 @@ function Home({
       )}
 
       {panel === "profile" && (
-        <OverlayPanel title="Your Profile" subtitle="L-easy learner" onClose={() => setPanel(null)}>
-          <div className="flex items-center gap-4 rounded-card border border-line bg-card p-5">
-            <div className="grid size-14 place-items-center rounded-full bg-gradient-to-br from-accent to-purple text-lg font-bold text-white">
-              {userName ? userName[0].toUpperCase() : "U"}
-            </div>
-            <div>
-              <div className="font-bold text-white">{userName || "Студент"}</div>
-              <div className="mt-1 text-xs text-copy-muted">{userEmail || "Активный аккаунт"}</div>
-            </div>
-          </div>
-          <div className="mt-4 space-y-3">
-            {["Learning profile", "Notification settings", "Sign out"].map((item) => (
-              <Button
-                className="flex w-full items-center justify-between rounded-2xl border border-line bg-card p-4 text-sm font-semibold text-white"
-                key={item}
-                onClick={() =>
-                  item === "Sign out"
-                    ? supabase.auth.signOut()
-                    : setProfileFeedback(`${item} updated for this demo.`)
-                }
+        <OverlayPanel title="Профиль студента" subtitle="L-easy · Личный кабинет" onClose={() => setPanel(null)}>
+          {/* Карточка студента с уровнем и XP */}
+          <section className="relative overflow-hidden rounded-card border border-line bg-card p-5">
+            <div className="flex items-center gap-4">
+              <div
+                className={`grid size-16 shrink-0 place-items-center rounded-full bg-gradient-to-br ${avatarGradient} text-xl font-bold text-white shadow-glow ring-2 ring-white/15`}
               >
-                {item}
-                <Icon name="arrow" className="size-4 text-copy-dim" />
+                {initials}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <div className="truncate text-base font-bold text-white">{userName || "Студент"}</div>
+                  <span className="shrink-0 rounded-full bg-accent-muted px-2.5 py-0.5 text-mini font-bold text-accent-bright">
+                    Ур. {level}
+                  </span>
+                </div>
+                <div className="mt-0.5 truncate text-xs text-copy-muted">{userEmail || "Активный аккаунт"}</div>
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-mini text-purple-light">
+                  <span>{university}</span>
+                  <span>·</span>
+                  <span>{major}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <div className="flex items-center justify-between text-mini font-semibold text-copy-muted">
+                <span>Опыт обучения: {xp} XP</span>
+                <span>До уровня {level + 1}: {150 - (xp % 150)} XP</span>
+              </div>
+              <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-elevated">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-accent to-purple transition-all duration-500"
+                  style={{ width: `${Math.max(8, levelProgress)}%` }}
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* Реальная статистика из базы Supabase */}
+          <section className="mt-3 grid grid-cols-4 gap-2">
+            {[
+              [String(libraryCount ?? 0), "Лекций", "text-accent-bright"],
+              [String(summariesCount), "Конспектов", "text-purple-light"],
+              [String(quizzesCount), "Квизов", "text-green"],
+              [`${totalMinutes}м`, "Аудио", "text-white"],
+            ].map(([val, label, color]) => (
+              <div className="rounded-2xl border border-line bg-card p-3 text-center" key={label}>
+                <div className={`text-base font-bold ${color}`}>{val}</div>
+                <div className="mt-0.5 text-mini text-copy-muted">{label}</div>
+              </div>
+            ))}
+          </section>
+
+          {/* Переключатель вкладок профиля */}
+          <div className="mt-4 grid grid-cols-3 rounded-xl bg-card p-1 border border-line">
+            {[
+              ["overview", "Настройки"],
+              ["edit", "Данные"],
+              ["security", "Аккаунт"],
+            ].map(([id, label]) => (
+              <Button
+                className={`rounded-lg py-2.5 text-xs font-bold transition ${
+                  profileTab === id ? "bg-accent text-white shadow-glow" : "text-copy-muted"
+                }`}
+                key={id}
+                onClick={() => {
+                  setProfileFeedback("");
+                  setProfileError("");
+                  setProfileTab(id as "overview" | "edit" | "security");
+                }}
+              >
+                {label}
               </Button>
             ))}
           </div>
+
           {profileFeedback && (
-            <div className="mt-4 rounded-xl border border-green/25 bg-green/10 p-3 text-xs font-semibold text-green">
-              {profileFeedback}
+            <div className="mt-3 rounded-xl border border-green/25 bg-green/10 p-3 text-xs font-semibold text-green">
+              ✓ {profileFeedback}
             </div>
           )}
+          {profileError && (
+            <div className="mt-3 rounded-xl border border-red/25 bg-red/10 p-3 text-xs font-semibold text-red">
+              ⚠ {profileError}
+            </div>
+          )}
+
+          {/* Вкладка 1: Настройки обучения и ИИ */}
+          {profileTab === "overview" && (
+            <div className="mt-4 space-y-3">
+              <div className="rounded-2xl border border-line bg-card p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-xs font-bold text-white">Язык ИИ-конспектов по умолчанию</div>
+                    <div className="mt-0.5 text-mini text-copy-muted">Для Summary, Notes и AI Teacher</div>
+                  </div>
+                  <Select
+                    className="rounded-xl border border-line bg-elevated px-3 py-2 text-xs font-bold text-white"
+                    onChange={(e) => {
+                      const nextLang = e.target.value as Language;
+                      setDefaultLang(nextLang);
+                      void saveUserProfile({ default_lang: nextLang }, `Язык по умолчанию: ${nextLang}`);
+                    }}
+                    value={defaultLang}
+                  >
+                    <option value="Russian">Русский</option>
+                    <option value="Kazakh">Қазақша</option>
+                    <option value="English">English</option>
+                  </Select>
+                </div>
+              </div>
+
+              {[
+                {
+                  title: "Живая транскрипция при записи",
+                  desc: "Распознавать речь в реальном времени",
+                  value: autoTranscribe,
+                  toggle: () => {
+                    const next = !autoTranscribe;
+                    setAutoTranscribe(next);
+                    void saveUserProfile({ auto_transcribe: next }, "Настройка транскрипции сохранена");
+                  },
+                },
+                {
+                  title: "Акустическое шумоподавление",
+                  desc: "Фильтровать шум аудитории при записи",
+                  value: defaultNoiseFilter,
+                  toggle: () => {
+                    const next = !defaultNoiseFilter;
+                    setDefaultNoiseFilter(next);
+                    void saveUserProfile({ default_noise_filter: next }, "Настройка фильтра шума сохранена");
+                  },
+                },
+                {
+                  title: "Голосовая озвучка AI Teacher",
+                  desc: "Озвучивать ответы преподавателя в звонке",
+                  value: voiceTts,
+                  toggle: () => {
+                    const next = !voiceTts;
+                    setVoiceTts(next);
+                    void saveUserProfile({ voice_tts: next }, "Настройка озвучки сохранена");
+                  },
+                },
+              ].map((item) => (
+                <div className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-card p-4" key={item.title}>
+                  <div>
+                    <div className="text-xs font-bold text-white">{item.title}</div>
+                    <div className="mt-0.5 text-mini text-copy-muted">{item.desc}</div>
+                  </div>
+                  <Button
+                    aria-pressed={item.value}
+                    className={`rounded-full px-3.5 py-1.5 text-xs font-bold transition ${
+                      item.value ? "bg-green/15 text-green border border-green/30" : "bg-elevated text-copy-muted"
+                    }`}
+                    onClick={item.toggle}
+                  >
+                    {item.value ? "Вкл" : "Выкл"}
+                  </Button>
+                </div>
+              ))}
+
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <Button
+                  className="flex items-center justify-center gap-2 rounded-2xl border border-line bg-card py-3.5 text-xs font-bold text-white"
+                  onClick={() => {
+                    setPanel(null);
+                    navigate("library");
+                  }}
+                >
+                  <Icon name="book" className="size-4 text-accent-bright" />
+                  Моя библиотека
+                </Button>
+                <Button
+                  className="flex items-center justify-center gap-2 rounded-2xl border border-line bg-card py-3.5 text-xs font-bold text-white"
+                  onClick={() => {
+                    setPanel(null);
+                    openTests("quiz");
+                  }}
+                >
+                  <Icon name="test" className="size-4 text-purple-light" />
+                  Мои тесты
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Вкладка 2: Редактирование данных студента */}
+          {profileTab === "edit" && (
+            <div className="mt-4 space-y-3 rounded-card border border-line bg-card p-4">
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-semibold text-copy-muted">Имя и Фамилия</span>
+                <Input
+                  className="w-full rounded-xl border border-line bg-elevated px-3.5 py-2.5 text-sm text-white outline-none"
+                  onChange={(e) => setUserName(e.target.value)}
+                  placeholder="Например: Ералы Амангельдинов"
+                  value={userName}
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-semibold text-copy-muted">Университет / Колледж</span>
+                <Input
+                  className="w-full rounded-xl border border-line bg-elevated px-3.5 py-2.5 text-sm text-white outline-none"
+                  onChange={(e) => setUniversity(e.target.value)}
+                  placeholder="Astana IT University"
+                  value={university}
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-semibold text-copy-muted">Курс / Специальность / Группа</span>
+                <Input
+                  className="w-full rounded-xl border border-line bg-elevated px-3.5 py-2.5 text-sm text-white outline-none"
+                  onChange={(e) => setMajor(e.target.value)}
+                  placeholder="ICT · Computer Science"
+                  value={major}
+                />
+              </label>
+
+              <div>
+                <span className="mb-2 block text-xs font-semibold text-copy-muted">Тема аватара</span>
+                <div className="grid grid-cols-4 gap-2">
+                  {[
+                    ["aurora", "Синий", "from-accent to-purple"],
+                    ["emerald", "Изумруд", "from-green to-accent"],
+                    ["royal", "Неон", "from-purple to-accent"],
+                    ["crimson", "Рубин", "from-red to-purple"],
+                  ].map(([key, label, grad]) => (
+                    <Button
+                      className={`flex flex-col items-center gap-1.5 rounded-xl border p-2 text-mini font-semibold ${
+                        avatarTheme === key ? "border-accent bg-accent-muted text-white" : "border-line bg-elevated text-copy-muted"
+                      }`}
+                      key={key}
+                      onClick={() => setAvatarTheme(key)}
+                    >
+                      <span className={`size-6 rounded-full bg-gradient-to-br ${grad}`} />
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              <Button
+                className="mt-2 w-full rounded-xl bg-gradient-to-r from-accent to-purple py-3.5 text-xs font-bold text-white shadow-glow disabled:opacity-50"
+                disabled={savingProfile}
+                onClick={() => void saveUserProfile()}
+              >
+                {savingProfile ? "Сохранение…" : "Сохранить профиль"}
+              </Button>
+            </div>
+          )}
+
+          {/* Вкладка 3: Безопасность и аккаунт */}
+          {profileTab === "security" && (
+            <div className="mt-4 space-y-3">
+              <div className="rounded-card border border-line bg-card p-4 space-y-2 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-copy-muted">Email аккаунта</span>
+                  <span className="font-semibold text-white">{userEmail}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-copy-muted">Дата регистрации</span>
+                  <span className="font-semibold text-white">{memberSince || "Октябрь 2026"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-copy-muted">Защита данных</span>
+                  <span className="font-semibold text-green">Supabase RLS · Активна</span>
+                </div>
+              </div>
+
+              <div className="rounded-card border border-line bg-card p-4">
+                <div className="text-xs font-bold text-white">Изменить пароль</div>
+                <Input
+                  className="mt-2.5 w-full rounded-xl border border-line bg-elevated px-3.5 py-2.5 text-sm text-white outline-none placeholder:text-copy-dim"
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Новый пароль (мин. 6 символов)"
+                  type="password"
+                  value={newPassword}
+                />
+                <Button
+                  className="mt-3 w-full rounded-xl bg-accent py-3 text-xs font-bold text-white disabled:opacity-50"
+                  disabled={savingProfile || !newPassword.trim()}
+                  onClick={() => void handlePasswordUpdate()}
+                >
+                  {savingProfile ? "Обновление…" : "Обновить пароль"}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          <Button
+            className="mt-4 w-full rounded-2xl border border-red/30 bg-red/10 py-3.5 text-xs font-bold text-red transition hover:bg-red/20"
+            onClick={() => void supabase.auth.signOut()}
+          >
+            Выйти из аккаунта
+          </Button>
         </OverlayPanel>
       )}
 
