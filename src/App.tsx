@@ -394,6 +394,93 @@ function hasJsonContent(val: unknown): boolean {
   return false;
 }
 
+type CachedProfile = {
+  userName: string;
+  userEmail: string;
+  memberSince: string;
+  university: string;
+  major: string;
+  avatarTheme: string;
+  avatarUrl: string;
+  defaultLang: Language;
+  autoTranscribe: boolean;
+  defaultNoiseFilter: boolean;
+  voiceTts: boolean;
+};
+
+function getInitialProfile(): CachedProfile {
+  const fallback: CachedProfile = {
+    userName: "",
+    userEmail: "",
+    memberSince: "",
+    university: "Astana IT University",
+    major: "ICT · Computer Science",
+    avatarTheme: "aurora",
+    avatarUrl: "",
+    defaultLang: "Russian",
+    autoTranscribe: true,
+    defaultNoiseFilter: true,
+    voiceTts: true,
+  };
+  try {
+    // 1. Read directly from Supabase localStorage session token if present (always synchronous and up to date)
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith("sb-") && k.endsWith("-auth-token")) {
+        const raw = localStorage.getItem(k);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          const u = parsed?.user;
+          if (u) {
+            const meta = (u.user_metadata ?? {}) as Record<string, unknown>;
+            const emailPrefix = String(u.email ?? "").split("@")[0] ?? "";
+            fallback.userEmail = String(u.email ?? "");
+            fallback.userName = String(meta.full_name || emailPrefix);
+            if (meta.university) fallback.university = String(meta.university);
+            if (meta.major) fallback.major = String(meta.major);
+            if (typeof meta.avatar_theme === "string") fallback.avatarTheme = meta.avatar_theme;
+            if (typeof meta.avatar_url === "string") fallback.avatarUrl = meta.avatar_url;
+            if (meta.default_lang === "English" || meta.default_lang === "Russian" || meta.default_lang === "Kazakh") {
+              fallback.defaultLang = meta.default_lang;
+            }
+            if (typeof meta.auto_transcribe === "boolean") fallback.autoTranscribe = meta.auto_transcribe;
+            if (typeof meta.default_noise_filter === "boolean") fallback.defaultNoiseFilter = meta.default_noise_filter;
+            if (typeof meta.voice_tts === "boolean") fallback.voiceTts = meta.voice_tts;
+            if (u.created_at) {
+              fallback.memberSince = new Date(u.created_at).toLocaleDateString("ru-RU", { month: "short", year: "numeric" });
+            }
+          }
+        }
+      }
+    }
+    // 2. Also overlay any newer local profile cache
+    const cached = localStorage.getItem("leasy_profile_cache");
+    if (cached) {
+      const p = JSON.parse(cached) as Partial<CachedProfile>;
+      if (p.userEmail && (!fallback.userEmail || p.userEmail === fallback.userEmail)) {
+        return { ...fallback, ...p };
+      }
+    }
+  } catch {}
+  return fallback;
+}
+
+function getInitialStats() {
+  try {
+    const raw = localStorage.getItem("leasy_stats_cache");
+    if (raw) {
+      const s = JSON.parse(raw);
+      return {
+        libraryCount: typeof s.libraryCount === "number" ? s.libraryCount : null,
+        summariesCount: Number(s.summariesCount || 0),
+        quizzesCount: Number(s.quizzesCount || 0),
+        totalMinutes: Number(s.totalMinutes || 0),
+      };
+    }
+  } catch {}
+  return { libraryCount: null as number | null, summariesCount: 0, quizzesCount: 0, totalMinutes: 0 };
+}
+
 function Home({
   navigate,
   openTests,
@@ -401,6 +488,9 @@ function Home({
   navigate: (screen: Screen) => void;
   openTests: (mode: "quiz" | "cards") => void;
 }) {
+  const [initProfile] = useState<CachedProfile>(() => getInitialProfile());
+  const [initStats] = useState(() => getInitialStats());
+
   const [panel, setPanel] = useState<"search" | "profile" | "schedule" | null>(null);
   const [query, setQuery] = useState("");
   const [profileTab, setProfileTab] = useState<"overview" | "edit" | "security">("overview");
@@ -408,17 +498,17 @@ function Home({
   const [profileError, setProfileError] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
 
-  const [userName, setUserName] = useState("");
-  const [userEmail, setUserEmail] = useState("");
-  const [memberSince, setMemberSince] = useState("");
-  const [university, setUniversity] = useState("Astana IT University");
-  const [major, setMajor] = useState("ICT · Computer Science");
-  const [avatarTheme, setAvatarTheme] = useState<string>("aurora");
-  const [avatarUrl, setAvatarUrl] = useState<string>("");
-  const [defaultLang, setDefaultLang] = useState<Language>("Russian");
-  const [autoTranscribe, setAutoTranscribe] = useState(true);
-  const [defaultNoiseFilter, setDefaultNoiseFilter] = useState(true);
-  const [voiceTts, setVoiceTts] = useState(true);
+  const [userName, setUserName] = useState(initProfile.userName);
+  const [userEmail, setUserEmail] = useState(initProfile.userEmail);
+  const [memberSince, setMemberSince] = useState(initProfile.memberSince);
+  const [university, setUniversity] = useState(initProfile.university);
+  const [major, setMajor] = useState(initProfile.major);
+  const [avatarTheme, setAvatarTheme] = useState<string>(initProfile.avatarTheme);
+  const [avatarUrl, setAvatarUrl] = useState<string>(initProfile.avatarUrl);
+  const [defaultLang, setDefaultLang] = useState<Language>(initProfile.defaultLang);
+  const [autoTranscribe, setAutoTranscribe] = useState(initProfile.autoTranscribe);
+  const [defaultNoiseFilter, setDefaultNoiseFilter] = useState(initProfile.defaultNoiseFilter);
+  const [voiceTts, setVoiceTts] = useState(initProfile.voiceTts);
   const [newPassword, setNewPassword] = useState("");
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
@@ -439,19 +529,29 @@ function Home({
   const [schedStatus, setSchedStatus] = useState("Сегодня");
   const [scheduleNotice, setScheduleNotice] = useState("");
 
-  const [libraryCount, setLibraryCount] = useState<number | null>(null);
-  const [summariesCount, setSummariesCount] = useState(0);
-  const [quizzesCount, setQuizzesCount] = useState(0);
-  const [totalMinutes, setTotalMinutes] = useState(0);
+  const [libraryCount, setLibraryCount] = useState<number | null>(initStats.libraryCount);
+  const [summariesCount, setSummariesCount] = useState(initStats.summariesCount);
+  const [quizzesCount, setQuizzesCount] = useState(initStats.quizzesCount);
+  const [totalMinutes, setTotalMinutes] = useState(initStats.totalMinutes);
 
   const refreshLibraryStats = () => {
     listRecordings()
       .then((rows) => {
-        setLibraryCount(rows.length);
-        setSummariesCount(rows.filter((r) => hasJsonContent(r.summary)).length);
-        setQuizzesCount(rows.filter((r) => hasJsonContent(r.study)).length);
+        const lc = rows.length;
+        const sc = rows.filter((r) => hasJsonContent(r.summary)).length;
+        const qc = rows.filter((r) => hasJsonContent(r.study)).length;
         const totalSecs = rows.reduce((sum, r) => sum + (r.duration ?? 0), 0);
-        setTotalMinutes(Math.max(rows.length > 0 ? 1 : 0, Math.round(totalSecs / 60)));
+        const tm = Math.max(rows.length > 0 ? 1 : 0, Math.round(totalSecs / 60));
+        setLibraryCount(lc);
+        setSummariesCount(sc);
+        setQuizzesCount(qc);
+        setTotalMinutes(tm);
+        try {
+          localStorage.setItem(
+            "leasy_stats_cache",
+            JSON.stringify({ libraryCount: lc, summariesCount: sc, quizzesCount: qc, totalMinutes: tm }),
+          );
+        } catch {}
       })
       .catch(() => setLibraryCount(0));
   };
@@ -462,18 +562,54 @@ function Home({
       if (!u) return;
       const meta = (u.user_metadata ?? {}) as Record<string, unknown>;
       const emailPrefix = u.email?.split("@")[0] ?? "";
-      setUserEmail(u.email ?? "");
-      setUserName(String(meta.full_name || emailPrefix));
-      if (meta.university) setUniversity(String(meta.university));
-      if (meta.major) setMajor(String(meta.major));
-      if (meta.avatar_theme && typeof meta.avatar_theme === "string") setAvatarTheme(meta.avatar_theme);
-      if (meta.avatar_url && typeof meta.avatar_url === "string") setAvatarUrl(meta.avatar_url);
-      if (meta.default_lang === "English" || meta.default_lang === "Russian" || meta.default_lang === "Kazakh") {
-        setDefaultLang(meta.default_lang);
-      }
-      if (typeof meta.auto_transcribe === "boolean") setAutoTranscribe(meta.auto_transcribe);
-      if (typeof meta.default_noise_filter === "boolean") setDefaultNoiseFilter(meta.default_noise_filter);
-      if (typeof meta.voice_tts === "boolean") setVoiceTts(meta.voice_tts);
+      const nextEmail = u.email ?? "";
+      const nextName = String(meta.full_name || emailPrefix);
+      const nextUni = meta.university ? String(meta.university) : university;
+      const nextMajor = meta.major ? String(meta.major) : major;
+      const nextTheme = typeof meta.avatar_theme === "string" ? meta.avatar_theme : avatarTheme;
+      const nextUrl = typeof meta.avatar_url === "string" ? meta.avatar_url : avatarUrl;
+      const nextLang: Language =
+        meta.default_lang === "English" || meta.default_lang === "Russian" || meta.default_lang === "Kazakh"
+          ? meta.default_lang
+          : defaultLang;
+      const nextAuto = typeof meta.auto_transcribe === "boolean" ? meta.auto_transcribe : autoTranscribe;
+      const nextNoise = typeof meta.default_noise_filter === "boolean" ? meta.default_noise_filter : defaultNoiseFilter;
+      const nextTts = typeof meta.voice_tts === "boolean" ? meta.voice_tts : voiceTts;
+      const nextSince = u.created_at
+        ? new Date(u.created_at).toLocaleDateString("ru-RU", { month: "short", year: "numeric" })
+        : memberSince;
+
+      setUserEmail(nextEmail);
+      setUserName(nextName);
+      setUniversity(nextUni);
+      setMajor(nextMajor);
+      setAvatarTheme(nextTheme);
+      setAvatarUrl(nextUrl);
+      setDefaultLang(nextLang);
+      setAutoTranscribe(nextAuto);
+      setDefaultNoiseFilter(nextNoise);
+      setVoiceTts(nextTts);
+      setMemberSince(nextSince);
+
+      try {
+        localStorage.setItem(
+          "leasy_profile_cache",
+          JSON.stringify({
+            userName: nextName,
+            userEmail: nextEmail,
+            memberSince: nextSince,
+            university: nextUni,
+            major: nextMajor,
+            avatarTheme: nextTheme,
+            avatarUrl: nextUrl,
+            defaultLang: nextLang,
+            autoTranscribe: nextAuto,
+            defaultNoiseFilter: nextNoise,
+            voiceTts: nextTts,
+          }),
+        );
+      } catch {}
+
       const localTs = Number(localStorage.getItem("leasy_schedule_ts") || "0");
       const remoteTs = Number(meta.schedule_ts || "0");
       if (Array.isArray(meta.schedule) && remoteTs >= localTs) {
@@ -483,11 +619,9 @@ function Home({
           if (remoteTs > 0) localStorage.setItem("leasy_schedule_ts", String(remoteTs));
         } catch {}
       }
-      if (u.created_at) {
-        setMemberSince(new Date(u.created_at).toLocaleDateString("ru-RU", { month: "short", year: "numeric" }));
-      }
     });
     refreshLibraryStats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const xp = (libraryCount ?? 0) * 50 + summariesCount * 40 + quizzesCount * 60;
@@ -553,6 +687,24 @@ function Home({
         voice_tts: voiceTts,
         ...(patch ?? {}),
       };
+      try {
+        localStorage.setItem(
+          "leasy_profile_cache",
+          JSON.stringify({
+            userName: String(payload.full_name),
+            userEmail,
+            memberSince,
+            university: String(payload.university),
+            major: String(payload.major),
+            avatarTheme: String(payload.avatar_theme),
+            avatarUrl: String(payload.avatar_url ?? ""),
+            defaultLang: payload.default_lang as Language,
+            autoTranscribe: Boolean(payload.auto_transcribe),
+            defaultNoiseFilter: Boolean(payload.default_noise_filter),
+            voiceTts: Boolean(payload.voice_tts),
+          }),
+        );
+      } catch {}
       const { error } = await supabase.auth.updateUser({ data: payload });
       if (error) throw error;
       setProfileFeedback(customMsg ?? "Профиль успешно сохранён в облаке Supabase!");
