@@ -1,5 +1,5 @@
 // Serverless function (Vercel): quiz questions + flashcards generated from the lecture transcript.
-import { callGemini, geminiKey, json, requireUser } from "./_lib.js";
+import { callGemini, escapeXml, geminiKey, json, requireUser, sanitizeLang } from "./_lib.js";
 
 const MAX_TRANSCRIPT_CHARS = 60_000;
 
@@ -20,17 +20,20 @@ export async function POST(request: Request) {
   const auth = await requireUser(request);
   if (!auth) return json({ error: "Please sign in again." }, 401);
 
-  let body: Record<string, unknown>;
+  let body: Record<string, unknown> | null = null;
   try {
     body = await request.json();
   } catch {
     return json({ error: "Invalid request body." }, 400);
   }
+  if (!body || typeof body !== "object") {
+    return json({ error: "Invalid request body." }, 400);
+  }
 
-  const transcript = String(body.transcript ?? "").trim().slice(0, MAX_TRANSCRIPT_CHARS);
+  const transcript = escapeXml(String(body.transcript ?? "").trim().slice(0, MAX_TRANSCRIPT_CHARS));
   if (transcript.length < 20) return json({ error: "The transcript is too short to make a test." }, 400);
-  const title = String(body.title ?? "").slice(0, 200);
-  const language = String(body.language ?? "English").slice(0, 30);
+  const title = escapeXml(String(body.title ?? "").slice(0, 200));
+  const language = sanitizeLang(body.language, "English");
 
   const prompt = `
 You are an expert teacher making a self-check test for a student from the lecture transcript below.
@@ -79,7 +82,7 @@ ${transcript}
       required: ["quiz", "flashcards"],
     },
   });
-  if (result.error) return json({ error: result.error }, 502);
+  if (result.error) return json({ error: result.error }, result.status ?? 502);
 
   try {
     const raw = JSON.parse(result.text as string) as { quiz?: Question[]; flashcards?: Card[] };

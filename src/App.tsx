@@ -465,17 +465,19 @@ function getInitialProfile(): CachedProfile {
   return fallback;
 }
 
-function getInitialStats() {
+function getInitialStats(expectedEmail?: string) {
   try {
     const raw = localStorage.getItem("leasy_stats_cache");
     if (raw) {
       const s = JSON.parse(raw);
-      return {
-        libraryCount: typeof s.libraryCount === "number" ? s.libraryCount : null,
-        summariesCount: Number(s.summariesCount || 0),
-        quizzesCount: Number(s.quizzesCount || 0),
-        totalMinutes: Number(s.totalMinutes || 0),
-      };
+      if (!expectedEmail || !s.userEmail || s.userEmail === expectedEmail) {
+        return {
+          libraryCount: typeof s.libraryCount === "number" ? s.libraryCount : null,
+          summariesCount: Number(s.summariesCount || 0),
+          quizzesCount: Number(s.quizzesCount || 0),
+          totalMinutes: Number(s.totalMinutes || 0),
+        };
+      }
     }
   } catch {}
   return { libraryCount: null as number | null, summariesCount: 0, quizzesCount: 0, totalMinutes: 0 };
@@ -493,7 +495,7 @@ function Home({
   onStartSubjectRecord: (subject: string) => void;
 }) {
   const [initProfile] = useState<CachedProfile>(() => getInitialProfile());
-  const [initStats] = useState(() => getInitialStats());
+  const [initStats] = useState(() => getInitialStats(initProfile.userEmail));
 
   const [panel, setPanel] = useState<"search" | "profile" | "schedule" | null>(null);
   const [query, setQuery] = useState("");
@@ -555,11 +557,16 @@ function Home({
         try {
           localStorage.setItem(
             "leasy_stats_cache",
-            JSON.stringify({ libraryCount: lc, summariesCount: sc, quizzesCount: qc, totalMinutes: tm }),
+            JSON.stringify({ userEmail: userEmail || initProfile.userEmail, libraryCount: lc, summariesCount: sc, quizzesCount: qc, totalMinutes: tm }),
           );
         } catch {}
       })
-      .catch(() => setLibraryCount(0));
+      .catch(() => {
+        setLibraryCount(0);
+        setSummariesCount(0);
+        setQuizzesCount(0);
+        setTotalMinutes(0);
+      });
   };
 
   useEffect(() => {
@@ -1387,7 +1394,15 @@ function Home({
 
           <Button
             className="mt-4 w-full rounded-2xl border border-red/30 bg-red/10 py-3.5 text-xs font-bold text-red transition hover:bg-red/20"
-            onClick={() => void supabase.auth.signOut()}
+            onClick={() => {
+              try {
+                localStorage.removeItem("leasy_profile_cache");
+                localStorage.removeItem("leasy_stats_cache");
+                localStorage.removeItem("leasy_schedule");
+                localStorage.removeItem("leasy_schedule_ts");
+              } catch {}
+              void supabase.auth.signOut();
+            }}
           >
             Выйти из аккаунта
           </Button>
@@ -1562,20 +1577,30 @@ function Recording({
   onRecordingContinue,
   onUploadReady,
 }: {
-  onRecordingContinue: (audio: { blob: Blob; duration: number; mimeType: string; transcript: string }) => void;
+  onRecordingContinue: (audio: {
+    blob: Blob;
+    duration: number;
+    mimeType: string;
+    transcript: string;
+    sourceLanguage?: Language;
+    outputLanguage?: Language;
+  }) => void;
   onUploadReady: (sourceFile: string, file?: File) => void;
 }) {
+  const [recProfile] = useState(() => getInitialProfile());
   const [recordingState, setRecordingState] = useState<RecorderState>("idle");
   const [elapsed, setElapsed] = useState(0);
-  const [sourceLanguage, setSourceLanguage] = useState("en-US");
-  const [outputLanguage, setOutputLanguage] = useState("kk-KZ");
-  const [liveTranscriptEnabled, setLiveTranscriptEnabled] = useState(false);
+  const [sourceLanguage, setSourceLanguage] = useState("ru-RU");
+  const [outputLanguage, setOutputLanguage] = useState(() =>
+    recProfile.defaultLang === "English" ? "en-US" : recProfile.defaultLang === "Kazakh" ? "kk-KZ" : "ru-RU",
+  );
+  const [liveTranscriptEnabled, setLiveTranscriptEnabled] = useState(() => recProfile.autoTranscribe);
   const [transcript, setTranscript] = useState("");
   const [interimTranscript, setInterimTranscript] = useState("");
   const [speechStatus, setSpeechStatus] = useState("Ready");
   const [showOptions, setShowOptions] = useState(false);
   const [showAudioSettings, setShowAudioSettings] = useState(false);
-  const [noiseFilter, setNoiseFilter] = useState(true);
+  const [noiseFilter, setNoiseFilter] = useState(() => recProfile.defaultNoiseFilter);
   const [recordingNotice, setRecordingNotice] = useState("");
   const [recordingError, setRecordingError] = useState("");
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
@@ -1673,7 +1698,10 @@ function Recording({
       setInterimTranscript(interimText);
       setSpeechStatus("Listening");
     };
-    recognition.onerror = () => setSpeechStatus("Microphone access needed");
+    recognition.onerror = () => {
+      active = false;
+      setSpeechStatus("Microphone access needed");
+    };
     recognition.onend = () => {
       if (!active) return;
       try {
@@ -1748,7 +1776,13 @@ function Recording({
 
     let requestedStream: MediaStream | null = null;
     try {
-      requestedStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      requestedStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          noiseSuppression: noiseFilter,
+          echoCancellation: noiseFilter,
+          autoGainControl: noiseFilter,
+        },
+      });
       if (!componentMountedRef.current) {
         stopStreamTracks(requestedStream);
         startRequestRef.current = false;
@@ -1992,6 +2026,10 @@ function Recording({
                   duration: recordedDuration,
                   mimeType: recordedBlob.type,
                   transcript: transcript.trim(),
+                  sourceLanguage:
+                    sourceLanguage === "en-US" ? "English" : sourceLanguage === "kk-KZ" ? "Kazakh" : "Russian",
+                  outputLanguage:
+                    outputLanguage === "en-US" ? "English" : outputLanguage === "kk-KZ" ? "Kazakh" : "Russian",
                 })
               }
             >
@@ -3104,10 +3142,19 @@ function Tests({
   const [flipped, setFlipped] = useState(false);
   const [cardFeedback, setCardFeedback] = useState("");
   const [deckComplete, setDeckComplete] = useState(false);
+  const ratingBusyRef = useRef(false);
 
   useEffect(() => {
     setTab(initialMode);
   }, [initialMode]);
+
+  useEffect(() => {
+    return () => {
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
 
   const startQuiz = (title: string) => {
     setActiveQuiz(title);
@@ -3133,12 +3180,20 @@ function Tests({
   };
 
   const rateCard = (rating: string) => {
+    if (ratingBusyRef.current || flashcards.length === 0) return;
+    ratingBusyRef.current = true;
     setCardFeedback(`${rating} saved. Review schedule updated.`);
     setFlipped(false);
     window.setTimeout(() => {
-      if (cardIndex === flashcards.length - 1) setDeckComplete(true);
-      else setCardIndex((value) => value + 1);
+      setCardIndex((prev) => {
+        if (prev >= flashcards.length - 1) {
+          setDeckComplete(true);
+          return prev;
+        }
+        return prev + 1;
+      });
       setCardFeedback("");
+      ratingBusyRef.current = false;
     }, 350);
   };
 
@@ -3310,7 +3365,8 @@ function Tests({
                 e.stopPropagation();
                 if (typeof window !== "undefined" && "speechSynthesis" in window) {
                   window.speechSynthesis.cancel();
-                  const textToSpeak = flipped ? flashcards[cardIndex][1] : flashcards[cardIndex][0];
+                  const safeCard = flashcards[Math.min(cardIndex, flashcards.length - 1)] ?? ["", ""];
+                  const textToSpeak = flipped ? safeCard[1] : safeCard[0];
                   const utter = new SpeechSynthesisUtterance(textToSpeak);
                   utter.lang =
                     lecture.outputLanguage === "Russian"
@@ -3329,7 +3385,10 @@ function Tests({
               {flipped ? "Definition" : "Key term"}
             </span>
             <span className="mt-5 block text-2xl font-bold leading-tight text-white">
-              {flipped ? flashcards[cardIndex][1] : flashcards[cardIndex][0]}
+              {(() => {
+                const safeCard = flashcards[Math.min(cardIndex, flashcards.length - 1)] ?? ["", ""];
+                return flipped ? safeCard[1] : safeCard[0];
+              })()}
             </span>
             <span className="mt-7 text-xs text-copy-muted">Tap card to flip</span>
           </Button>
@@ -3442,10 +3501,15 @@ function Teacher({ lecture, onBack }: { lecture: Lecture; onBack: () => void }) 
       if (!response.ok) throw new Error(data.error ?? `Request failed (${response.status})`);
       const replyText = String(data.answer);
       setMessages((current) => [...current, { role: "assistant", text: replyText }]);
-      if (voiceCallActive && typeof window !== "undefined" && "speechSynthesis" in window) {
+      if (voiceCallActive && getInitialProfile().voiceTts && typeof window !== "undefined" && "speechSynthesis" in window) {
         window.speechSynthesis.cancel();
         const utter = new SpeechSynthesisUtterance(replyText.slice(0, 300));
-        utter.lang = lecture.outputLanguage === "Russian" ? "ru-RU" : "en-US";
+        utter.lang =
+          lecture.outputLanguage === "Russian"
+            ? "ru-RU"
+            : lecture.outputLanguage === "Kazakh"
+              ? "kk-KZ"
+              : "en-US";
         window.speechSynthesis.speak(utter);
       }
     } catch (err) {
@@ -3503,6 +3567,17 @@ function Teacher({ lecture, onBack }: { lecture: Lecture; onBack: () => void }) 
     return () => window.clearInterval(timer);
   }, [voiceCallActive]);
 
+  useEffect(() => {
+    return () => {
+      try {
+        recognitionRef.current?.stop();
+      } catch {}
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
   const callTime = `${String(Math.floor(callSeconds / 60)).padStart(2, "0")}:${String(callSeconds % 60).padStart(2, "0")}`;
 
   return (
@@ -3530,7 +3605,10 @@ function Teacher({ lecture, onBack }: { lecture: Lecture; onBack: () => void }) 
       <div className="grid grid-cols-2 rounded-xl bg-card p-1">
         <Button
           className={`rounded-lg py-3 text-xs font-bold ${!voice ? "bg-accent text-white" : "text-copy-muted"}`}
-          onClick={() => setVoice(false)}
+          onClick={() => {
+            setVoice(false);
+            setVoiceCallActive(false);
+          }}
         >
           Text Chat
         </Button>
@@ -3970,7 +4048,14 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const continueRecordedLecture = (audio: { blob: Blob; duration: number; mimeType: string; transcript: string }) => {
+  const continueRecordedLecture = (audio: {
+    blob: Blob;
+    duration: number;
+    mimeType: string;
+    transcript: string;
+    sourceLanguage?: Language;
+    outputLanguage?: Language;
+  }) => {
     const prefLang = getInitialProfile().defaultLang;
     const subj = presetSubject || "General Subject";
     setSelectedLecture({
@@ -3978,8 +4063,8 @@ export default function App() {
       subject: subj,
       professor: "Преподаватель",
       date: new Date().toISOString().split("T")[0],
-      sourceLanguage: "Russian",
-      outputLanguage: prefLang,
+      sourceLanguage: audio.sourceLanguage ?? "Russian",
+      outputLanguage: audio.outputLanguage ?? prefLang,
       sourceType: "recording",
       sourceFile: "Lecture Recording",
       transcript: audio.transcript,
@@ -4025,11 +4110,16 @@ export default function App() {
     } catch {
       saved = null;
     }
+    const prefLang = getInitialProfile().defaultLang;
     let savedStudy: { language?: Language; data?: StudyData } | null = null;
     try {
       const rawStudy = typeof row.study === "string" ? JSON.parse(row.study) : row.study;
-      if (rawStudy && typeof rawStudy === "object" && "data" in rawStudy) {
-        savedStudy = rawStudy as { language?: Language; data?: StudyData };
+      if (rawStudy && typeof rawStudy === "object") {
+        if ("data" in rawStudy && rawStudy.data) {
+          savedStudy = rawStudy as { language?: Language; data?: StudyData };
+        } else if ("quiz" in rawStudy || "flashcards" in rawStudy) {
+          savedStudy = { language: saved?.language ?? prefLang, data: rawStudy as StudyData };
+        }
       }
     } catch {
       savedStudy = null;
@@ -4045,10 +4135,10 @@ export default function App() {
     setSelectedLecture({
       title: row.title ?? "Recording",
       subject: "General Subject",
-      professor: "AI Assistant",
+      professor: "Преподаватель",
       date: (row.created_at ?? new Date().toISOString()).split("T")[0],
-      sourceLanguage: "English",
-      outputLanguage: saved?.language ?? "Kazakh",
+      sourceLanguage: "Russian",
+      outputLanguage: saved?.language ?? prefLang,
       sourceType: "recording",
       sourceFile: row.title ?? "Recording",
       transcript: row.transcript ?? "",

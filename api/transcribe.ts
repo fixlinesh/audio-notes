@@ -3,7 +3,7 @@
 // token (so Storage RLS applies) and send it to Gemini. Vercel limits request bodies to ~4.5 MB,
 // which is why the file is not posted to this function directly.
 import { Buffer } from "node:buffer";
-import { callGemini, geminiKey, json, requireUser } from "./_lib.js";
+import { callGemini, geminiKey, json, requireUser, sanitizeLang } from "./_lib.js";
 
 const MAX_BYTES = 14 * 1024 * 1024; // base64 inflates by ~33%; Gemini inline limit is ~20 MB
 
@@ -12,15 +12,18 @@ export async function POST(request: Request) {
   const auth = await requireUser(request);
   if (!auth) return json({ error: "Please sign in again." }, 401);
 
-  let body: Record<string, unknown>;
+  let body: Record<string, unknown> | null = null;
   try {
     body = await request.json();
   } catch {
     return json({ error: "Invalid request body." }, 400);
   }
+  if (!body || typeof body !== "object") {
+    return json({ error: "Invalid request body." }, 400);
+  }
 
   const path = String(body.path ?? "");
-  const language = String(body.language ?? "English").slice(0, 30);
+  const language = sanitizeLang(body.language, "English");
   if (!path.startsWith(`${auth.user.id}/`) || path.includes("..")) {
     return json({ error: "Forbidden." }, 403);
   }
@@ -35,15 +38,19 @@ export async function POST(request: Request) {
   if (mimeType === "audio/webm") mimeType = "video/webm"; // browser recordings: audio-only WebM container
   const data = Buffer.from(await file.data.arrayBuffer()).toString("base64");
 
-  const result = await callGemini([
-    { inlineData: { mimeType, data } },
-    {
-      text:
-        `Transcribe this lecture recording word for word. The spoken language is ${language}. ` +
-        `Return only the transcript text, without timestamps, speaker labels or comments. ` +
-        `If there is no speech, return an empty string.`,
-    },
-  ]);
-  if (result.error) return json({ error: result.error }, 502);
-  return json({ transcript: result.text });
+  const result = await callGemini(
+    [
+      { inlineData: { mimeType, data } },
+      {
+        text:
+          `Transcribe this lecture recording word for word. The spoken language is ${language}. ` +
+          `Return only the transcript text, without timestamps, speaker labels or comments. ` +
+          `If there is no speech, return an empty string.`,
+      },
+    ],
+    undefined,
+    { allowEmpty: true },
+  );
+  if (result.error) return json({ error: result.error }, result.status ?? 502);
+  return json({ transcript: result.text ?? "" });
 }

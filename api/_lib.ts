@@ -3,8 +3,19 @@ import { createClient, type SupabaseClient, type User } from "@supabase/supabase
 export const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 
-export const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
-export const geminiKey = () => process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || "";
+export const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+export const geminiKey = () => process.env.GEMINI_API_KEY || "";
+
+const ALLOWED_LANGUAGES = new Set(["English", "Russian", "Kazakh"]);
+
+export function sanitizeLang(val: unknown, fallback = "English"): string {
+  const s = String(val ?? "").trim();
+  return ALLOWED_LANGUAGES.has(s) ? s : fallback;
+}
+
+export function escapeXml(val: string): string {
+  return val.replace(/<\/?(transcript|lecture)>/gi, "");
+}
 
 export async function requireUser(
   request: Request,
@@ -22,24 +33,36 @@ export async function requireUser(
   return { user: data.user, client };
 }
 
-export async function callGemini(parts: unknown[], generationConfig?: unknown) {
-  const upstream = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": geminiKey() },
-      body: JSON.stringify({ contents: [{ parts }], ...(generationConfig ? { generationConfig } : {}) }),
-    },
-  );
-  if (!upstream.ok) {
-    console.error("Gemini API error", upstream.status, await upstream.text());
-    return { error: `AI service error (${upstream.status}).` };
+export async function callGemini(
+  parts: unknown[],
+  generationConfig?: unknown,
+  options?: { allowEmpty?: boolean },
+): Promise<{ text?: string; error?: string; status?: number }> {
+  try {
+    const upstream = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": geminiKey() },
+        body: JSON.stringify({ contents: [{ parts }], ...(generationConfig ? { generationConfig } : {}) }),
+      },
+    );
+    if (!upstream.ok) {
+      console.error("Gemini API error", upstream.status, await upstream.text());
+      return {
+        error: upstream.status === 429 ? "AI rate limit reached. Please retry in a few seconds." : `AI service error (${upstream.status}).`,
+        status: upstream.status === 429 ? 429 : 502,
+      };
+    }
+    const data = await upstream.json();
+    const text = (data.candidates?.[0]?.content?.parts ?? [])
+      .map((p: { text?: string }) => p.text ?? "")
+      .join("")
+      .trim();
+    if (!text && !options?.allowEmpty) return { error: "The AI returned an empty response.", status: 502 };
+    return { text };
+  } catch (err) {
+    console.error("Gemini network error", err);
+    return { error: "Could not reach AI service.", status: 502 };
   }
-  const data = await upstream.json();
-  const text = (data.candidates?.[0]?.content?.parts ?? [])
-    .map((p: { text?: string }) => p.text ?? "")
-    .join("")
-    .trim();
-  if (!text) return { error: "The AI returned an empty response." };
-  return { text };
 }

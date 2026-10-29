@@ -13,10 +13,20 @@ export default function Root() {
       setSession(data.session);
       setReady(true);
     });
-    const { data } = supabase.auth.onAuthStateChange((_event, next) => setSession(next));
+    const { data } = supabase.auth.onAuthStateChange((event, next) => {
+      if (event === "SIGNED_OUT" || !next) {
+        try {
+          localStorage.removeItem("leasy_profile_cache");
+          localStorage.removeItem("leasy_stats_cache");
+          localStorage.removeItem("leasy_schedule");
+          localStorage.removeItem("leasy_schedule_ts");
+        } catch {}
+      }
+      setSession(next);
+    });
     return () => data.subscription.unsubscribe();
   }, []);
 
   if (!ready) return <div className="min-h-screen bg-page" />;
-  return session ? <App /> : <Auth />;
+  return session ? <App key={session.user.id} /> : <Auth />;
 }
