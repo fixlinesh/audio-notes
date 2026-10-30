@@ -3,8 +3,19 @@ import { createClient, type SupabaseClient, type User } from "@supabase/supabase
 export const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 
-export const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 export const geminiKey = () => process.env.GEMINI_API_KEY || "";
+
+// Ordered list of candidate models for high reliability and fallback
+export const CANDIDATE_MODELS = Array.from(
+  new Set(
+    [
+      process.env.GEMINI_MODEL,
+      "gemini-flash-latest",
+      "gemini-3.8-flash",
+      "gemini-flash-lite-latest",
+    ].filter(Boolean) as string[],
+  ),
+);
 
 const ALLOWED_LANGUAGES = new Set(["English", "Russian", "Kazakh"]);
 
@@ -48,31 +59,49 @@ export async function callGemini(
   generationConfig?: unknown,
   options?: { allowEmpty?: boolean },
 ): Promise<{ text?: string; error?: string; status?: number }> {
-  try {
-    const upstream = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-goog-api-key": geminiKey() },
-        body: JSON.stringify({ contents: [{ parts }], ...(generationConfig ? { generationConfig } : {}) }),
-      },
-    );
-    if (!upstream.ok) {
-      console.error("Gemini API error", upstream.status, await upstream.text());
-      return {
-        error: upstream.status === 429 ? "AI rate limit reached. Please retry in a few seconds." : `AI service error (${upstream.status}).`,
-        status: upstream.status === 429 ? 429 : 502,
-      };
+  let lastError = "Could not reach AI service.";
+  let lastStatus = 502;
+
+  for (const model of CANDIDATE_MODELS) {
+    try {
+      const upstream = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-goog-api-key": geminiKey() },
+          body: JSON.stringify({ contents: [{ parts }], ...(generationConfig ? { generationConfig } : {}) }),
+        },
+      );
+      if (!upstream.ok) {
+        const errText = await upstream.text();
+        console.error(`Gemini API error on model ${model}:`, upstream.status, errText);
+        lastStatus = upstream.status === 429 ? 429 : 502;
+        lastError =
+          upstream.status === 429
+            ? "AI rate limit reached. Please retry in a few seconds."
+            : `AI service error (${upstream.status}).`;
+
+        // If model not found (404), overloaded (503), or quota limited (429), try next candidate
+        if (upstream.status === 404 || upstream.status === 503 || upstream.status === 429) {
+          continue;
+        }
+        return { error: lastError, status: lastStatus };
+      }
+      const data = await upstream.json();
+      const text = (data.candidates?.[0]?.content?.parts ?? [])
+        .map((p: { text?: string }) => p.text ?? "")
+        .join("")
+        .trim();
+      if (!text && !options?.allowEmpty) {
+        lastError = "The AI returned an empty response.";
+        continue;
+      }
+      return { text };
+    } catch (err) {
+      console.error(`Gemini network error on model ${model}:`, err);
+      lastError = "Could not reach AI service.";
     }
-    const data = await upstream.json();
-    const text = (data.candidates?.[0]?.content?.parts ?? [])
-      .map((p: { text?: string }) => p.text ?? "")
-      .join("")
-      .trim();
-    if (!text && !options?.allowEmpty) return { error: "The AI returned an empty response.", status: 502 };
-    return { text };
-  } catch (err) {
-    console.error("Gemini network error", err);
-    return { error: "Could not reach AI service.", status: 502 };
   }
+
+  return { error: lastError, status: lastStatus };
 }
