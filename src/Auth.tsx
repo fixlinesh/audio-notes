@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { supabase } from "./lib/supabase";
 
-export default function Auth() {
+export default function Auth({ onContinueGuest }: { onContinueGuest?: () => void }) {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [fullName, setFullName] = useState("");
   const [university, setUniversity] = useState("Astana IT University");
@@ -202,6 +202,16 @@ export default function Auth() {
           >
             {busy ? "Подождите…" : mode === "signin" ? "Войти в L-easy" : "Создать аккаунт"}
           </button>
+
+          {onContinueGuest && (
+            <button
+              className="w-full rounded-xl border border-accent/40 bg-accent-muted py-3 text-xs font-bold text-accent-bright transition hover:border-accent"
+              onClick={onContinueGuest}
+              type="button"
+            >
+              🚀 Открыть демо без входа (Competition Jury Mode)
+            </button>
+          )}
         </div>
 
         <p className="mt-5 text-center text-mini text-copy-dim">

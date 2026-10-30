@@ -21,8 +21,18 @@ export async function requireUser(
   request: Request,
 ): Promise<{ user: User; client: SupabaseClient } | null> {
   const token = (request.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
+  const isGuestDemo = request.headers.get("x-guest-demo") === "true";
   const url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
   const anon = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+  if (!token && isGuestDemo && url && anon) {
+    const guestClient = createClient(url, anon, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    return {
+      user: { id: "guest-demo", app_metadata: {}, user_metadata: {}, aud: "authenticated", created_at: "" } as User,
+      client: guestClient,
+    };
+  }
   if (!token || !url || !anon) return null;
   const client = createClient(url, anon, {
     global: { headers: { Authorization: `Bearer ${token}` } },

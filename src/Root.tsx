@@ -7,6 +7,7 @@ import Auth from "./Auth";
 export default function Root() {
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
+  const [showAuth, setShowAuth] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -22,11 +23,13 @@ export default function Root() {
           localStorage.removeItem("leasy_schedule_ts");
         } catch {}
       }
+      if (next) setShowAuth(false);
       setSession(next);
     });
     return () => data.subscription.unsubscribe();
   }, []);
 
   if (!ready) return <div className="min-h-screen bg-page" />;
-  return session ? <App key={session.user.id} /> : <Auth />;
+  if (!session && showAuth) return <Auth onContinueGuest={() => setShowAuth(false)} />;
+  return <App isGuest={!session} key={session?.user.id ?? "guest-demo"} onOpenAuth={() => setShowAuth(true)} />;
 }
