@@ -1,0 +1,21 @@
+Session_ID,Lecture_Title,Subject,Acoustic_Zone,Ambient_Noise_dB,SNR_dB,Speech_Rate_WPM,Noise_Filter_Active,Device_Type,Processing_Latency_ms,ASR_Accuracy_Pct,Quiz_Score_Pct,Task_Completion_Sec,SUS_Score
+S01,Graph Theory & Dijkstra Algorithm,Computer Science,Quiet (<45dB),38.4,22.5,118,TRUE,Laptop Array Mic,1120,97.2,92.5,78,87.5
+S02,Newtonian Mechanics & Force Vectors,Physics I,Quiet (<45dB),41.2,20.8,124,TRUE,Smartphone MEMS Mic,1180,96.5,90,82,85
+S03,Relational Database Normalization,Databases,Quiet (<45dB),39,21.9,115,TRUE,BLE Lapel Smart Mic,980,97.8,95,74,90
+S04,TCP/IP Protocol Suite & Handshake,Computer Networks,Quiet (<45dB),43.5,19.4,130,TRUE,Smartphone MEMS Mic,1240,95.4,88,85,82.5
+S05,Eigenvalues & Linear Transformations,Calculus II,Quiet (<45dB),37.1,23.1,112,FALSE,Laptop Array Mic,1090,95.1,89.5,80,85
+S06,Attention Mechanism & Transformers,Artificial Intelligence,Quiet (<45dB),40.3,21,122,TRUE,BLE Lapel Smart Mic,1020,96.8,92,76,87.5
+S07,Operating Systems: Virtual Memory,Computer Systems,Moderate (45-60dB),48.6,17.2,128,TRUE,Smartphone MEMS Mic,1310,94.6,88.5,84,85
+S08,Microeconomics: Market Equilibrium,Economics,Moderate (45-60dB),51.4,16,134,TRUE,Laptop Array Mic,1390,93.9,87,86,82.5
+S09,Graph Theory & Dijkstra Algorithm,Computer Science,Moderate (45-60dB),54.2,15.1,138,TRUE,Smartphone MEMS Mic,1420,93.2,86.5,88,82.5
+S10,Newtonian Mechanics & Force Vectors,Physics I,Moderate (45-60dB),57.8,14.3,142,TRUE,BLE Lapel Smart Mic,1280,94.1,89,81,85
+S11,Relational Database Normalization,Databases,Moderate (45-60dB),49.5,16.5,126,TRUE,Laptop Array Mic,1350,94,88,83,85
+S12,TCP/IP Protocol Suite & Handshake,Computer Networks,Moderate (45-60dB),55.9,10.2,140,FALSE,Smartphone MEMS Mic,1480,85.4,78,95,77.5
+S13,Eigenvalues & Linear Transformations,Calculus II,Moderate (45-60dB),52.3,15.6,131,TRUE,Smartphone MEMS Mic,1360,93.5,86,84,82.5
+S14,Attention Mechanism & Transformers,Artificial Intelligence,Noisy (>60dB),63.4,13.8,145,TRUE,BLE Lapel Smart Mic,1490,92.1,85.5,85,85
+S15,Operating Systems: Virtual Memory,Computer Systems,Noisy (>60dB),66.8,12.6,150,TRUE,Smartphone MEMS Mic,1560,90.8,83.5,89,82.5
+S16,Microeconomics: Market Equilibrium,Economics,Noisy (>60dB),69.1,11.9,154,TRUE,Laptop Array Mic,1620,89.9,82,91,80
+S17,Graph Theory & Dijkstra Algorithm,Computer Science,Noisy (>60dB),64.7,13.2,148,TRUE,Smartphone MEMS Mic,1510,91.5,85,87,82.5
+S18,Newtonian Mechanics & Force Vectors,Physics I,Noisy (>60dB),65.5,6.1,149,FALSE,Laptop Array Mic,1710,78.2,70,118,72.5
+S19,Relational Database Normalization,Databases,Noisy (>60dB),68.9,5.2,156,FALSE,Smartphone MEMS Mic,1790,75.8,67.5,126,70
+S20,TCP/IP Protocol Suite & Handshake,Computer Networks,Noisy (>60dB),71.2,4.8,162,FALSE,Smartphone MEMS Mic,1840,75.1,68,132,70

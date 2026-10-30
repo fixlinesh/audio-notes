@@ -5,14 +5,16 @@ export const json = (body: unknown, status = 200) =>
 
 export const geminiKey = () => process.env.GEMINI_API_KEY || "";
 
-// Ordered list of candidate models for high reliability and fallback
+// Ordered list of candidate models optimized for fast response (<3s) to prevent Vercel 504 timeouts
 export const CANDIDATE_MODELS = Array.from(
   new Set(
     [
-      process.env.GEMINI_MODEL,
-      "gemini-flash-latest",
-      "gemini-3.8-flash",
+      "gemini-3.5-flash-lite",
+      "gemini-3.1-flash-lite",
       "gemini-flash-lite-latest",
+      process.env.GEMINI_MODEL,
+      "gemini-3.8-flash",
+      "gemini-flash-latest",
     ].filter(Boolean) as string[],
   ),
 );
@@ -64,14 +66,17 @@ export async function callGemini(
 
   for (const model of CANDIDATE_MODELS) {
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8500);
       const upstream = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-goog-api-key": geminiKey() },
           body: JSON.stringify({ contents: [{ parts }], ...(generationConfig ? { generationConfig } : {}) }),
+          signal: controller.signal,
         },
-      );
+      ).finally(() => clearTimeout(timeoutId));
       if (!upstream.ok) {
         const errText = await upstream.text();
         console.error(`Gemini API error on model ${model}:`, upstream.status, errText);
