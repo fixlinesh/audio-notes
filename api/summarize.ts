@@ -68,13 +68,15 @@ ${transcript}
         },
         example: {
           type: "STRING",
-          description: "A detailed practical example or case study from or consistent with the lecture.",
+          description: "A practical example or case study from or consistent with the lecture.",
         },
       },
       required: ["explanation", "simplified", "keyPoints", "terms", "example"],
     },
   });
-  if (result.error) return json({ error: result.error }, result.status ?? 502);
+  if (result.error) {
+    return json({ error: result.error, debug: result.debug || result.lastError }, result.status ?? 502);
+  }
 
   try {
     return json(JSON.parse(result.text as string));

@@ -5,19 +5,12 @@ export const json = (body: unknown, status = 200) =>
 
 export const geminiKey = () => process.env.GEMINI_API_KEY || "";
 
-// Ordered list of candidate models optimized for fast response (<3s) to prevent Vercel 504 timeouts
-export const CANDIDATE_MODELS = Array.from(
-  new Set(
-    [
-      "gemini-3.5-flash-lite",
-      "gemini-3.1-flash-lite",
-      "gemini-flash-lite-latest",
-      process.env.GEMINI_MODEL,
-      "gemini-3.8-flash",
-      "gemini-flash-latest",
-    ].filter(Boolean) as string[],
-  ),
-);
+// Ordered list of candidate models optimized for fast response (<3s) to prevent Vercel timeouts
+export const CANDIDATE_MODELS = [
+  "gemini-3.5-flash-lite",
+  "gemini-3.1-flash-lite",
+  "gemini-flash-lite-latest",
+];
 
 const ALLOWED_LANGUAGES = new Set(["English", "Russian", "Kazakh"]);
 
@@ -60,14 +53,15 @@ export async function callGemini(
   parts: unknown[],
   generationConfig?: unknown,
   options?: { allowEmpty?: boolean },
-): Promise<{ text?: string; error?: string; status?: number }> {
+): Promise<{ text?: string; error?: string; status?: number; debug?: any }> {
   let lastError = "Could not reach AI service.";
   let lastStatus = 502;
+  const attempts: any[] = [];
 
   for (const model of CANDIDATE_MODELS) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8500);
+      const timeoutId = setTimeout(() => controller.abort(), 6500);
       const upstream = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
         {
@@ -77,20 +71,17 @@ export async function callGemini(
           signal: controller.signal,
         },
       ).finally(() => clearTimeout(timeoutId));
+
       if (!upstream.ok) {
         const errText = await upstream.text();
         console.error(`Gemini API error on model ${model}:`, upstream.status, errText);
+        attempts.push({ model, status: upstream.status, error: errText.slice(0, 150) });
         lastStatus = upstream.status === 429 ? 429 : 502;
         lastError =
           upstream.status === 429
             ? "AI rate limit reached. Please retry in a few seconds."
             : `AI service error (${upstream.status}).`;
-
-        // If model not found (404), overloaded (503), or quota limited (429), try next candidate
-        if (upstream.status === 404 || upstream.status === 503 || upstream.status === 429) {
-          continue;
-        }
-        return { error: lastError, status: lastStatus };
+        continue;
       }
       const data = await upstream.json();
       const text = (data.candidates?.[0]?.content?.parts ?? [])
@@ -98,15 +89,15 @@ export async function callGemini(
         .join("")
         .trim();
       if (!text && !options?.allowEmpty) {
-        lastError = "The AI returned an empty response.";
+        attempts.push({ model, empty: true });
         continue;
       }
       return { text };
-    } catch (err) {
-      console.error(`Gemini network error on model ${model}:`, err);
-      lastError = "Could not reach AI service.";
+    } catch (err: any) {
+      console.error(`Gemini network/timeout on model ${model}:`, err.message);
+      attempts.push({ model, error: err.name === "AbortError" ? "timeout 6.5s" : err.message });
     }
   }
 
-  return { error: lastError, status: lastStatus };
+  return { error: lastError, status: lastStatus, debug: attempts };
 }
