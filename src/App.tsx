@@ -2164,6 +2164,10 @@ function Recording({
   const [playerDuration, setPlayerDuration] = useState(0);
   const [showUpload, setShowUpload] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [liveDb, setLiveDb] = useState<number | null>(null);
+  const [liveSnr, setLiveSnr] = useState<number | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const animFrameRef = useRef<number | null>(null);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -2195,11 +2199,27 @@ function Recording({
     return () => window.clearInterval(timer);
   }, [running]);
 
+  const stopAudioTelemetry = () => {
+    if (animFrameRef.current) {
+      cancelAnimationFrame(animFrameRef.current);
+      animFrameRef.current = null;
+    }
+    if (audioContextRef.current) {
+      try {
+        void audioContextRef.current.close();
+      } catch {}
+      audioContextRef.current = null;
+    }
+    setLiveDb(null);
+    setLiveSnr(null);
+  };
+
   useEffect(() => {
     componentMountedRef.current = true;
     return () => {
       componentMountedRef.current = false;
       startRequestRef.current = false;
+      stopAudioTelemetry();
       const recorder = mediaRecorderRef.current;
       if (recorder && recorder.state !== "inactive") {
         recorder.ondataavailable = null;
@@ -2374,12 +2394,14 @@ function Recording({
       };
       recorder.onerror = () => {
         recorderFailedRef.current = true;
+        stopAudioTelemetry();
         stopStreamTracks(mediaStreamRef.current);
         mediaStreamRef.current = null;
         mediaRecorderRef.current = null;
         setRecorderError("mediaRecorderError", "The browser reported an error while recording.");
       };
       recorder.onstop = () => {
+        stopAudioTelemetry();
         if (recorderFailedRef.current) return;
         stopStreamTracks(mediaStreamRef.current);
         mediaStreamRef.current = null;
@@ -2413,6 +2435,48 @@ function Recording({
           setRecorderError("recordingFinalizationFailure", "The recorded audio could not be prepared for playback.");
         }
       };
+
+      // Real-time Web Audio API Telemetry (real dB & SNR from live microphone)
+      try {
+        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioCtx) {
+          const ctx = new AudioCtx();
+          const src = ctx.createMediaStreamSource(requestedStream);
+          const analyser = ctx.createAnalyser();
+          analyser.fftSize = 256;
+          analyser.smoothingTimeConstant = 0.4;
+          src.connect(analyser);
+          audioContextRef.current = ctx;
+
+          const dataArray = new Uint8Array(analyser.frequencyBinCount);
+          let baselineNoise = 38;
+
+          const measureLoop = () => {
+            if (!componentMountedRef.current) return;
+            analyser.getByteTimeDomainData(dataArray);
+            let sum = 0;
+            for (let i = 0; i < dataArray.length; i++) {
+              const norm = (dataArray[i] - 128) / 128;
+              sum += norm * norm;
+            }
+            const rms = Math.sqrt(sum / dataArray.length);
+            const dbfs = 20 * Math.log10(Math.max(0.0001, rms));
+            const calculatedDb = Math.round(Math.max(30, Math.min(95, 92 + dbfs)));
+
+            if (calculatedDb < baselineNoise) baselineNoise = calculatedDb;
+            else baselineNoise = baselineNoise * 0.995 + calculatedDb * 0.005;
+
+            const snr = Math.max(0, calculatedDb - Math.round(baselineNoise));
+
+            setLiveDb(calculatedDb);
+            setLiveSnr(snr);
+            animFrameRef.current = requestAnimationFrame(measureLoop);
+          };
+          animFrameRef.current = requestAnimationFrame(measureLoop);
+        }
+      } catch (err) {
+        console.warn("Real Web Audio telemetry setup failed:", err);
+      }
 
       recorder.start();
       setRecordingState("recording");
@@ -2469,6 +2533,7 @@ function Recording({
   };
 
   const deleteRecording = () => {
+    stopAudioTelemetry();
     audioRef.current?.pause();
     if (recordedUrlRef.current) {
       URL.revokeObjectURL(recordedUrlRef.current);
@@ -2535,12 +2600,17 @@ function Recording({
       </div>
       <div className="mb-4 grid grid-cols-3 gap-2 rounded-xl border border-accent/30 bg-card p-2.5 text-center text-mini">
         <div className="rounded-lg bg-elevated py-1.5">
-          <div className="font-bold text-green">{running ? `${41 + (elapsed % 7)} dB` : "42 dB"}</div>
-          <div className="text-copy-dim">Ambient Sensor</div>
+          <div className="font-bold text-green flex items-center justify-center gap-1">
+            {running && <span className="size-2 rounded-full bg-green animate-pulse" />}
+            <span>{running && liveDb !== null ? `${liveDb} dB` : "42 dB"}</span>
+          </div>
+          <div className="text-copy-dim">{running ? "Real Ambient dB" : "Ambient Sensor"}</div>
         </div>
         <div className="rounded-lg bg-elevated py-1.5">
-          <div className="font-bold text-accent-bright">{noiseFilter ? "+18.6 dB" : "+9.2 dB"}</div>
-          <div className="text-copy-dim">SNR Clarity</div>
+          <div className="font-bold text-accent-bright">
+            {running && liveSnr !== null ? `+${liveSnr.toFixed(1)} dB` : noiseFilter ? "+18.6 dB" : "+9.2 dB"}
+          </div>
+          <div className="text-copy-dim">{running ? "Real SNR Voice" : "SNR Clarity"}</div>
         </div>
         <div className="rounded-lg bg-elevated py-1.5">
           <div className="font-bold text-purple-light">{noiseFilter ? "Biquad ON" : "Filter OFF"}</div>
