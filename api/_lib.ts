@@ -6,10 +6,13 @@ export const json = (body: unknown, status = 200) =>
 export const geminiKey = () => process.env.GEMINI_API_KEY || "";
 
 // Ordered list of candidate models verified available in Gemini API.
-// gemini-3.5-flash is primary because it reliably supports multimodality/audio without 503 spikes.
+// gemini-3.5-flash and gemini-3.5-flash-lite are primary because they reliably answer without 503 spikes.
 export const CANDIDATE_MODELS = [
   "gemini-3.5-flash",
   "gemini-3.5-flash-lite",
+  "gemini-3.1-flash-lite",
+  "gemini-3.6-flash",
+  "gemini-3.7-flash",
   "gemini-3.8-flash",
 ];
 
@@ -83,6 +86,9 @@ export async function callGemini(
           upstream.status === 429
             ? "AI rate limit reached. Please retry in a few seconds."
             : `AI service error (${upstream.status}).`;
+        if (upstream.status === 503) {
+          await new Promise((r) => setTimeout(r, 400));
+        }
         continue;
       }
       const data = await upstream.json();

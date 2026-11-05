@@ -4156,7 +4156,21 @@ function Tests({
   const [flipped, setFlipped] = useState(false);
   const [cardFeedback, setCardFeedback] = useState("");
   const [deckComplete, setDeckComplete] = useState(false);
+  const [cardRatings, setCardRatings] = useState<Record<string, "hard" | "good" | "easy">>({});
+  const [categoryFilter, setCategoryFilter] = useState<"all" | "hard" | "good" | "easy">("all");
   const ratingBusyRef = useRef(false);
+
+  const hardCards = flashcards.filter(([term]) => cardRatings[term] === "hard");
+  const goodCards = flashcards.filter(([term]) => cardRatings[term] === "good");
+  const easyCards = flashcards.filter(([term]) => cardRatings[term] === "easy");
+  const displayedCards =
+    categoryFilter === "hard"
+      ? hardCards
+      : categoryFilter === "good"
+      ? goodCards
+      : categoryFilter === "easy"
+      ? easyCards
+      : flashcards;
 
   useEffect(() => {
     setTab(initialMode);
@@ -4193,10 +4207,15 @@ function Tests({
     setSelectedAnswer(null);
   };
 
-  const rateCard = (rating: string) => {
+  const rateCard = (rating: "hard" | "good" | "easy") => {
     if (ratingBusyRef.current || flashcards.length === 0) return;
+    const currentCard = flashcards[Math.min(cardIndex, flashcards.length - 1)];
+    if (currentCard) {
+      setCardRatings((prev) => ({ ...prev, [currentCard[0]]: rating }));
+    }
     ratingBusyRef.current = true;
-    setCardFeedback(`${rating} saved. Review schedule updated.`);
+    const label = rating === "hard" ? t.cardHard : rating === "good" ? t.cardGood : t.cardEasy;
+    setCardFeedback(`${label} ✓`);
     setFlipped(false);
     window.setTimeout(() => {
       setCardIndex((prev) => {
@@ -4410,38 +4429,201 @@ function Tests({
           </Button>
 
           <div className="mt-5 grid grid-cols-3 gap-3">
-            {[
-              ["Hard", "Soon", "bg-red/10 text-red border-red/25"],
-              ["Good", "3 days", "bg-accent-muted text-accent-bright border-accent/25"],
-              ["Easy", "7 days", "bg-green/10 text-green border-green/25"],
-            ].map(([label, interval, tone]) => (
-              <Button className={`rounded-xl border py-3 text-xs font-bold ${tone}`} key={label} onClick={() => rateCard(label)}>
-                {label}
-                <span className="mt-1 block text-mini font-medium opacity-70">{interval}</span>
-              </Button>
-            ))}
+            <Button
+              className="rounded-xl border border-red/30 bg-red/10 py-3 text-xs font-bold text-red hover:bg-red/20 transition"
+              onClick={() => rateCard("hard")}
+            >
+              {t.cardHard}
+              <span className="mt-1 block text-mini font-medium opacity-80">{t.cardSoon}</span>
+            </Button>
+            <Button
+              className="rounded-xl border border-accent/30 bg-accent-muted py-3 text-xs font-bold text-accent-bright hover:opacity-90 transition"
+              onClick={() => rateCard("good")}
+            >
+              {t.cardGood}
+              <span className="mt-1 block text-mini font-medium opacity-80">{t.card3Days}</span>
+            </Button>
+            <Button
+              className="rounded-xl border border-green/30 bg-green/10 py-3 text-xs font-bold text-green hover:bg-green/20 transition"
+              onClick={() => rateCard("easy")}
+            >
+              {t.cardEasy}
+              <span className="mt-1 block text-mini font-medium opacity-80">{t.card7Days}</span>
+            </Button>
           </div>
           {cardFeedback && <div className="mt-4 text-center text-xs font-semibold text-green">{cardFeedback}</div>}
         </div>
       )}
 
       {tab === "cards" && deckComplete && flashcards.length > 0 && (
-        <section className="mt-6 rounded-card border border-purple/30 bg-card p-6 text-center">
+        <section className="mt-6 rounded-card border border-purple/30 bg-card p-6 text-center shadow-lg">
           <div className="mx-auto grid size-14 place-items-center rounded-full bg-purple/15 text-purple-light">
             <Icon name="cards" className="size-7" />
           </div>
-          <Heading level={2} className="mt-4 text-xl font-bold text-white">Deck complete</Heading>
-          <p className="mt-2 text-sm text-copy-muted">All ratings were saved to your review schedule.</p>
-          <Button
-            className="mt-6 w-full rounded-xl bg-purple py-4 text-sm font-bold text-white"
-            onClick={() => {
-              setCardIndex(0);
-              setDeckComplete(false);
-              setFlipped(false);
-            }}
-          >
-            Review Again
-          </Button>
+          <Heading level={2} className="mt-4 text-xl font-bold text-white">
+            {lang === "Kazakh" ? "Карточкалар қайталанды!" : lang === "English" ? "Deck complete!" : "Все карточки пройдены!"}
+          </Heading>
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-2.5 text-xs">
+            <span className="px-3.5 py-1.5 rounded-full bg-red/15 border border-red/30 text-red font-bold">
+              {t.cardHard}: {hardCards.length}
+            </span>
+            <span className="px-3.5 py-1.5 rounded-full bg-accent/15 border border-accent/30 text-accent-bright font-bold">
+              {t.cardGood}: {goodCards.length}
+            </span>
+            <span className="px-3.5 py-1.5 rounded-full bg-green/15 border border-green/30 text-green font-bold">
+              {t.cardEasy}: {easyCards.length}
+            </span>
+          </div>
+          <div className="mt-6 flex flex-col sm:flex-row gap-3">
+            {hardCards.length > 0 && (
+              <Button
+                className="flex-1 rounded-xl bg-red py-3.5 text-xs font-bold text-white shadow-red hover:opacity-95"
+                onClick={() => {
+                  setCategoryFilter("hard");
+                  setCardIndex(0);
+                  setDeckComplete(false);
+                  setFlipped(false);
+                }}
+              >
+                {t.reviewHardOnly} ({hardCards.length})
+              </Button>
+            )}
+            <Button
+              className="flex-1 rounded-xl bg-purple py-3.5 text-xs font-bold text-white hover:opacity-95"
+              onClick={() => {
+                setCategoryFilter("all");
+                setCardIndex(0);
+                setDeckComplete(false);
+                setFlipped(false);
+              }}
+            >
+              {lang === "Kazakh" ? "Барлығын басынан қайталау" : lang === "English" ? "Review All Again" : "Пройти все заново"}
+            </Button>
+          </div>
+        </section>
+      )}
+
+      {/* Categorized Terms Section: Separates Hard, Good, Easy terms */}
+      {tab === "cards" && flashcards.length > 0 && (
+        <section className="mt-8 rounded-card border border-line bg-card p-5 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+            <div>
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <span className="size-2 rounded-full bg-purple" />
+                <span>
+                  {lang === "Kazakh"
+                    ? "Таңдалған санаттар бойынша терминдер"
+                    : lang === "English"
+                    ? "Terms by Difficulty Category"
+                    : "Термины по категориям сложности"}
+                </span>
+              </h3>
+              <p className="text-xs text-copy-muted mt-1">
+                {lang === "Kazakh"
+                  ? "Қиын, орташа және оңай деп белгіленген терминдер бөлек сақталады"
+                  : lang === "English"
+                  ? "Terms grouped by Hard, Good, and Easy ratings"
+                  : "Термины распределены отдельно по категориям: сложно, нормально, легко"}
+              </p>
+            </div>
+            {hardCards.length > 0 && (
+              <Button
+                className="rounded-xl bg-red/15 border border-red/30 px-3.5 py-1.5 text-xs font-bold text-red hover:bg-red/25 transition whitespace-nowrap"
+                onClick={() => {
+                  setCategoryFilter("hard");
+                  setCardIndex(0);
+                  setDeckComplete(false);
+                  setFlipped(false);
+                }}
+              >
+                {t.reviewHardOnly} ({hardCards.length})
+              </Button>
+            )}
+          </div>
+
+          {/* Filter Pills */}
+          <div className="flex flex-wrap gap-2 mb-4">
+            <button
+              onClick={() => setCategoryFilter("all")}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition ${
+                categoryFilter === "all" ? "bg-accent text-white shadow-glow" : "bg-elevated text-copy-muted hover:text-white"
+              }`}
+            >
+              {t.allCards} ({flashcards.length})
+            </button>
+            <button
+              onClick={() => setCategoryFilter("hard")}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                categoryFilter === "hard" ? "bg-red text-white shadow-glow" : "bg-red/10 border border-red/25 text-red hover:bg-red/20"
+              }`}
+            >
+              <span className="size-2 rounded-full bg-red" />
+              <span>{t.cardHard} ({hardCards.length})</span>
+            </button>
+            <button
+              onClick={() => setCategoryFilter("good")}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                categoryFilter === "good" ? "bg-accent text-white shadow-glow" : "bg-accent/10 border border-accent/25 text-accent-bright hover:bg-accent/20"
+              }`}
+            >
+              <span className="size-2 rounded-full bg-accent-bright" />
+              <span>{t.cardGood} ({goodCards.length})</span>
+            </button>
+            <button
+              onClick={() => setCategoryFilter("easy")}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                categoryFilter === "easy" ? "bg-green text-white shadow-glow" : "bg-green/10 border border-green/25 text-green hover:bg-green/20"
+              }`}
+            >
+              <span className="size-2 rounded-full bg-green" />
+              <span>{t.cardEasy} ({easyCards.length})</span>
+            </button>
+          </div>
+
+          {/* Cards List in Selected Filter */}
+          <div className="space-y-2.5 max-h-80 overflow-y-auto pr-1">
+            {displayedCards.length === 0 ? (
+              <div className="text-center py-8 text-xs text-copy-muted bg-elevated/40 rounded-xl border border-line">
+                {t.noCardsInCategory}
+              </div>
+            ) : (
+              displayedCards.map(([term, def], idx) => {
+                const rating = cardRatings[term];
+                const badgeClass =
+                  rating === "hard"
+                    ? "bg-red/15 text-red border-red/30"
+                    : rating === "good"
+                    ? "bg-accent/15 text-accent-bright border-accent/30"
+                    : rating === "easy"
+                    ? "bg-green/15 text-green border-green/30"
+                    : "bg-elevated text-copy-muted border-line";
+                const badgeLabel =
+                  rating === "hard"
+                    ? t.cardHard
+                    : rating === "good"
+                    ? t.cardGood
+                    : rating === "easy"
+                    ? t.cardEasy
+                    : lang === "Kazakh"
+                    ? "Бағаланбаған"
+                    : lang === "English"
+                    ? "Unrated"
+                    : "Не оценено";
+
+                return (
+                  <div key={idx} className="rounded-xl border border-line bg-elevated/40 p-3.5 hover:border-accent/40 transition">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-bold text-white">{term}</span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${badgeClass}`}>
+                        {badgeLabel}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-copy-muted leading-relaxed">{def}</p>
+                  </div>
+                );
+              })
+            )}
+          </div>
         </section>
       )}
     </div>
@@ -4649,21 +4831,23 @@ function Teacher({ lecture, onBack }: { lecture: Lecture; onBack: () => void }) 
         }
       />
 
-      <div className="grid grid-cols-2 rounded-xl bg-card p-1">
+      <div className="grid grid-cols-2 rounded-xl bg-card p-1 mb-2">
         <Button
-          className={`rounded-lg py-3 text-xs font-bold transition ${!voice ? "bg-accent text-white shadow-glow" : "text-copy-muted hover:text-white"}`}
+          className={`rounded-lg py-3 text-xs font-bold transition flex items-center justify-center gap-2 ${!voice ? "bg-accent text-white shadow-glow" : "text-copy-muted hover:text-white"}`}
           onClick={() => {
             setVoice(false);
             setVoiceCallActive(false);
           }}
         >
-          {t.textChat}
+          <Icon name="message" className="size-4" />
+          <span>{t.textChat || (lang === "Kazakh" ? "Мәтіндік чат" : lang === "English" ? "Text Chat" : "Текстовый чат")}</span>
         </Button>
         <Button
-          className={`rounded-lg py-3 text-xs font-bold transition ${voice ? "bg-purple text-white shadow-purple" : "text-copy-muted hover:text-white"}`}
+          className={`rounded-lg py-3 text-xs font-bold transition flex items-center justify-center gap-2 ${voice ? "bg-purple text-white shadow-purple" : "text-copy-muted hover:text-white"}`}
           onClick={() => setVoice(true)}
         >
-          {t.voiceCall}
+          <Icon name="wave" className="size-4" />
+          <span>{t.voiceCall || (lang === "Kazakh" ? "Дауыстық қоңырау" : lang === "English" ? "Voice Call" : "Голосовой звонок")}</span>
         </Button>
       </div>
 
