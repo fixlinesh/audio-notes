@@ -98,33 +98,32 @@ export default function Auth({ onContinueGuest }: { onContinueGuest?: () => void
     }
   };
 
-  const langOptions: { id: UILanguage; label: string; flag: string }[] = [
-    { id: "Kazakh", label: "Қаз", flag: "🇰🇿" },
-    { id: "Russian", label: "Рус", flag: "🇷🇺" },
-    { id: "English", label: "Eng", flag: "🇬🇧" },
+  const langOptions: { id: UILanguage; short: string }[] = [
+    { id: "Kazakh", short: "ҚАЗ" },
+    { id: "Russian", short: "РУС" },
+    { id: "English", short: "ENG" },
   ];
 
   return (
-    <div className="min-h-screen bg-page flex items-center justify-center p-3 sm:p-6">
-      <div className="relative mx-auto flex min-h-screen md:min-h-0 w-full max-w-md md:max-w-lg flex-col justify-center bg-app px-6 py-10 shadow-phone md:shadow-2xl md:my-10 md:rounded-3xl md:border md:border-line">
+    <div className="min-h-screen bg-app flex items-center justify-center p-3 sm:p-6">
+      <div className="relative mx-auto flex min-h-screen md:min-h-0 w-full max-w-md md:max-w-lg flex-col justify-center bg-card px-6 py-10 shadow-phone md:shadow-2xl md:my-10 md:rounded-3xl border border-line">
         {/* Top Controls: Language and Theme Switcher */}
         <div className="absolute right-6 top-6 flex items-center gap-2">
           <div
             role="radiogroup"
             aria-label="Language"
-            className="inline-flex items-center gap-0.5 rounded-full border border-line bg-card p-1 shadow-sm"
+            className="inline-flex items-center gap-1 rounded-full border border-line bg-elevated/60 p-1 shadow-sm"
           >
             {langOptions.map((opt) => (
               <button
                 key={opt.id}
                 type="button"
                 onClick={() => setLang(opt.id)}
-                className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-mini font-bold transition ${
-                  lang === opt.id ? "bg-accent text-white shadow-glow" : "text-copy-muted hover:text-white"
+                className={`flex items-center justify-center rounded-full px-2.5 py-1 text-[11px] font-bold tracking-wide whitespace-nowrap transition-all ${
+                  lang === opt.id ? "bg-accent text-white shadow-glow scale-[1.02]" : "text-copy-muted hover:text-white"
                 }`}
               >
-                <span>{opt.flag}</span>
-                <span>{opt.label}</span>
+                <span>{opt.short}</span>
               </button>
             ))}
           </div>

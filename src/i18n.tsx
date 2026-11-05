@@ -587,6 +587,22 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   );
 }
 
+export function formatDisplayDate(lang: UILanguage): string {
+  const d = new Date();
+  if (lang === "Kazakh") {
+    const months = [
+      "қаңтар", "ақпан", "наурыз", "сәуір", "мамыр", "маусым",
+      "шілде", "тамыз", "қыркүйек", "қазан", "қараша", "желтоқсан",
+    ];
+    const days = ["Жексенбі", "Дүйсенбі", "Сейсенбі", "Сәрсенбі", "Бейсенбі", "Жұма", "Сенбі"];
+    return `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]}`;
+  }
+  if (lang === "English") {
+    return d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+  }
+  return d.toLocaleDateString("ru-RU", { weekday: "long", month: "long", day: "numeric" });
+}
+
 export function useI18n() {
   return useContext(I18nContext);
 }

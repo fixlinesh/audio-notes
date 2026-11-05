@@ -22,7 +22,7 @@ import {
 } from "./lib/supabase";
 import type { SummaryData } from "./summarize";
 import { useTheme } from "./theme";
-import { useI18n, type UILanguage } from "./i18n";
+import { useI18n, type UILanguage, formatDisplayDate } from "./i18n";
 import * as pdfjsLib from 'pdfjs-dist';
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
@@ -282,16 +282,16 @@ function Heading({
 
 export function LanguageToggle({ className = "" }: { className?: string }) {
   const { lang, setLang } = useI18n();
-  const options: { id: UILanguage; label: string; flag: string }[] = [
-    { id: "Kazakh", label: "Қаз", flag: "🇰🇿" },
-    { id: "Russian", label: "Рус", flag: "🇷🇺" },
-    { id: "English", label: "Eng", flag: "🇬🇧" },
+  const options: { id: UILanguage; label: string; short: string }[] = [
+    { id: "Kazakh", label: "Қазақша", short: "ҚАЗ" },
+    { id: "Russian", label: "Русский", short: "РУС" },
+    { id: "English", label: "English", short: "ENG" },
   ];
   return (
     <div
       role="radiogroup"
       aria-label="Интерфейс тілі / Язык интерфейса"
-      className={`inline-flex items-center gap-0.5 rounded-full border border-line bg-card p-1 shadow-sm transition ${className}`}
+      className={`inline-flex items-center gap-1 rounded-full border border-line bg-card p-1 shadow-sm transition ${className}`}
     >
       {options.map((opt) => (
         <button
@@ -300,15 +300,14 @@ export function LanguageToggle({ className = "" }: { className?: string }) {
           role="radio"
           aria-checked={lang === opt.id}
           onClick={() => setLang(opt.id)}
-          className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-mini font-bold transition ${
+          className={`flex items-center justify-center rounded-full px-3 py-1 text-[11px] font-bold tracking-wide whitespace-nowrap transition-all ${
             lang === opt.id
-              ? "bg-accent text-white shadow-glow"
-              : "text-copy-muted hover:text-white"
+              ? "bg-accent text-white shadow-glow scale-[1.02]"
+              : "text-copy-muted hover:text-white hover:bg-elevated/60"
           }`}
-          title={opt.id}
+          title={opt.label}
         >
-          <span>{opt.flag}</span>
-          <span>{opt.label}</span>
+          <span>{opt.short}</span>
         </button>
       ))}
     </div>
@@ -411,13 +410,13 @@ function DesktopNavbar({
   ];
 
   return (
-    <header className="hidden md:flex sticky top-0 z-40 w-full items-center justify-between border-b border-line bg-nav/95 px-6 lg:px-8 py-3.5 backdrop-blur-xl transition">
+    <header className="hidden md:flex sticky top-0 z-40 w-full items-center justify-between border-b border-line bg-nav/95 px-6 lg:px-12 py-3 backdrop-blur-xl transition">
       <button
         onClick={() => onNavigate("home")}
-        className="flex items-center gap-3 text-left transition hover:opacity-90"
+        className="flex items-center gap-3 text-left transition hover:opacity-90 shrink-0"
         type="button"
       >
-        <div className="grid size-10 place-items-center rounded-xl bg-gradient-to-br from-accent to-purple text-white shadow-glow">
+        <div className="grid size-10 place-items-center rounded-xl bg-gradient-to-br from-accent to-purple text-white shadow-glow shrink-0">
           <Icon name="mic" className="size-5" />
         </div>
         <div>
@@ -427,29 +426,29 @@ function DesktopNavbar({
               AI Notes
             </span>
           </div>
-          <p className="text-[11px] text-copy-muted">{t.appSubtitle}</p>
+          <p className="text-[11px] text-copy-muted hidden lg:block">{t.appSubtitle}</p>
         </div>
       </button>
 
-      <nav className="flex items-center gap-1 rounded-2xl border border-line bg-card/90 p-1 shadow-sm">
+      <nav className="flex items-center gap-1 rounded-2xl border border-line bg-card/90 p-1 shadow-sm shrink-0">
         {navItems.map((item) => (
           <button
             key={item.screen}
             onClick={() => onNavigate(item.screen)}
             type="button"
-            className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition ${
+            className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold whitespace-nowrap shrink-0 transition ${
               screen === item.screen
                 ? "bg-accent text-white shadow-glow"
                 : "text-copy-muted hover:text-white hover:bg-elevated/60"
             }`}
           >
-            <Icon name={item.icon} className="size-4" />
-            <span>{item.label}</span>
+            <Icon name={item.icon} className="size-4 shrink-0" />
+            <span className="whitespace-nowrap">{item.label}</span>
           </button>
         ))}
       </nav>
 
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-2.5 shrink-0">
         <LanguageToggle />
         <ThemeToggle compact />
         {onOpenSearch && (
@@ -1139,15 +1138,17 @@ function Home({
             {userName ? `${t.greeting}, ${userName}!` : `${t.greeting}, ${t.student}!`}
           </h1>
           <p className="mt-1 text-xs text-copy-muted">
-            {new Date().toLocaleDateString(lang === "Kazakh" ? "kk-KZ" : lang === "English" ? "en-US" : "ru-RU", { weekday: "long", month: "long", day: "numeric" })} · {university}
+            {formatDisplayDate(lang)} · {university}
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 rounded-2xl border border-line bg-card px-3.5 py-1.5 shadow-sm">
-            <span className="text-xs font-semibold text-copy-muted">{t.uiLanguage}:</span>
-            <LanguageToggle />
-          </div>
-          <ThemeToggle />
+          <Button
+            className="flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-xs font-bold text-white shadow-glow hover:opacity-95 transition"
+            onClick={() => navigate("record")}
+          >
+            <Icon name="mic" className="size-4" />
+            <span>{t.recordLecture}</span>
+          </Button>
         </div>
       </div>
 
@@ -1164,12 +1165,12 @@ function Home({
         <span className="relative flex items-center justify-between">
           <span>
             <span className="block text-xs font-bold uppercase tracking-widest text-blue-soft">
-              One-tap capture
+              {t.oneTapCapture}
             </span>
-            <span className="mt-2 block text-2xl font-bold text-white">Record Lecture</span>
-            <span className="mt-2 block text-sm text-blue-soft">Transcribe & translate with AI</span>
+            <span className="mt-2 block text-2xl font-bold text-white tracking-tight">{t.recordLecture}</span>
+            <span className="mt-2 block text-sm text-blue-soft leading-relaxed">{t.recordDesc}</span>
           </span>
-          <span className="grid size-16 place-items-center rounded-full bg-white text-accent shadow-mic transition group-hover:scale-105">
+          <span className="grid size-16 place-items-center rounded-full bg-white text-accent shadow-mic transition group-hover:scale-105 shrink-0">
             <Icon name="mic" className="size-7" />
           </span>
         </span>
@@ -1178,22 +1179,26 @@ function Home({
       <section className="mt-8">
         <div className="mb-4 flex items-center justify-between">
           <Heading level={2} className="text-lg font-bold text-white">
-            Today’s Schedule
+            {t.todaySchedule}
           </Heading>
           <Button
-            className="rounded-lg bg-accent-muted px-3 py-1.5 text-xs font-bold text-accent-bright"
+            className="rounded-lg bg-accent-muted px-3 py-1.5 text-xs font-bold text-accent-bright transition hover:opacity-90"
             onClick={() => {
               setScheduleNotice("");
               setPanel("schedule");
             }}
           >
-            Изменить · Все ({scheduleItems.length})
+            {lang === "Kazakh"
+              ? `Өзгерту · Барлығы (${scheduleItems.length})`
+              : lang === "English"
+                ? `Edit · All (${scheduleItems.length})`
+                : `Изменить · Все (${scheduleItems.length})`}
           </Button>
         </div>
         <div className="space-y-3">
           {scheduleItems.length === 0 && (
             <div className="rounded-2xl border border-line bg-card p-5 text-center text-xs text-copy-muted">
-              В расписании пока нет пар. Нажмите «Изменить», чтобы добавить свои предметы.
+              {t.noSchedule}
             </div>
           )}
           {scheduleItems.slice(0, 3).map((item, index) => (
@@ -1203,10 +1208,10 @@ function Home({
               }`}
               key={item.id}
             >
-              <div className="w-16 shrink-0">
+              <div className="min-w-[76px] shrink-0">
                 <div className="text-xs font-bold text-white">{item.time}</div>
-                <div className={`mt-1 text-mini ${index === 0 ? "text-accent-bright" : "text-copy-dim"}`}>
-                  {item.status}
+                <div className={`mt-1 text-mini font-semibold whitespace-nowrap ${index === 0 ? "text-accent-bright" : "text-copy-dim"}`}>
+                  {item.status === "Сегодня" ? t.today : item.status === "Завтра" ? t.tomorrow : item.status}
                 </div>
               </div>
               <div className="h-9 w-px bg-line" />
@@ -5239,15 +5244,15 @@ export default function App({
   };
 
   return (
-    <div className="min-h-screen bg-page">
-      <div className="relative mx-auto min-h-screen w-full max-w-md md:max-w-5xl lg:max-w-7xl overflow-x-hidden bg-app pb-page md:pb-12 shadow-phone md:shadow-2xl md:border-x md:border-line transition-all duration-300">
-        <DesktopNavbar
-          screen={screen}
-          onNavigate={navigate}
-          onOpenAuth={onOpenAuth}
-          isGuest={isGuest}
-          userName={selectedLecture?.professor}
-        />
+    <div className="min-h-screen w-full bg-app flex flex-col text-copy transition-colors duration-200">
+      <DesktopNavbar
+        screen={screen}
+        onNavigate={navigate}
+        onOpenAuth={onOpenAuth}
+        isGuest={isGuest}
+        userName={selectedLecture?.professor}
+      />
+      <main className="relative flex-1 w-full mx-auto max-w-md md:max-w-none px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 pb-page md:pb-12 overflow-x-hidden">
         {screen === "home" && (
           <Home
             isGuest={isGuest}
@@ -5305,7 +5310,7 @@ export default function App({
         {screen === "library" && <Library onOpen={openRecording} onRecordNew={() => navigate("record")} />}
         {screen === "teacher" && <Teacher lecture={selectedLecture} onBack={() => navigate("summary")} />}
         <BottomNav onNavigate={navigate} screen={screen} />
-      </div>
+      </main>
     </div>
   );
 }
