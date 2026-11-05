@@ -768,6 +768,7 @@ function Home({
 }) {
   const { isDark, setTheme } = useTheme();
   const { t, lang } = useI18n();
+  const tr = (ru: string, kk: string, en: string) => (lang === "Kazakh" ? kk : lang === "English" ? en : ru);
   const [initProfile] = useState<CachedProfile>(() => getInitialProfile());
   const [initStats] = useState(() => getInitialStats(initProfile.userEmail));
 
@@ -932,15 +933,12 @@ function Home({
   const xp = (libraryCount ?? 0) * 50 + summariesCount * 40 + quizzesCount * 60;
   const level = Math.max(1, Math.floor(xp / 150) + 1);
   const levelProgress = Math.min(100, Math.round(((xp % 150) / 150) * 100));
-  const levelTitles = [
-    "Новичок",
-    "Слушатель",
-    "Исследователь",
-    "Аналитик",
-    "Эрудит",
-    "Магистр конспектов",
-    "Академик L-easy",
-  ];
+  const levelTitles =
+    lang === "Kazakh"
+      ? ["Жаңадан бастаушы", "Тыңдаушы", "Зерттеуші", "Талдаушы", "Эрудит", "Конспект магистрі", "L-easy академигі"]
+      : lang === "English"
+        ? ["Newbie", "Listener", "Explorer", "Analyst", "Scholar", "Notes Master", "L-easy Academic"]
+        : ["Новичок", "Слушатель", "Исследователь", "Аналитик", "Эрудит", "Магистр конспектов", "Академик L-easy"];
   const levelTitle = levelTitles[Math.min(level - 1, levelTitles.length - 1)];
   const avatarGradient = avatarThemes[avatarTheme] ?? avatarThemes.aurora;
   const initials = (userName || "U")
@@ -968,7 +966,7 @@ function Home({
         ctx.drawImage(img, sx, sy, minSide, minSide, 0, 0, size, size);
         const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
         setAvatarUrl(dataUrl);
-        void saveUserProfile({ avatar_url: dataUrl }, "Фото профиля обновлено!");
+        void saveUserProfile({ avatar_url: dataUrl }, tr("Фото профиля обновлено!", "Профиль суреті жаңартылды!", "Profile photo updated!"));
       };
       img.src = String(reader.result);
     };
@@ -1012,9 +1010,9 @@ function Home({
       } catch {}
       const { error } = await supabase.auth.updateUser({ data: payload });
       if (error) throw error;
-      setProfileFeedback(customMsg ?? "Профиль успешно сохранён в облаке Supabase!");
+      setProfileFeedback(customMsg ?? tr("Профиль успешно сохранён в облаке Supabase!", "Профиль Supabase бұлтында сәтті сақталды!", "Profile saved to Supabase cloud!"));
     } catch (err) {
-      setProfileError(err instanceof Error ? err.message : "Не удалось сохранить профиль.");
+      setProfileError(err instanceof Error ? err.message : tr("Не удалось сохранить профиль.", "Профильді сақтау мүмкін болмады.", "Could not save the profile."));
     } finally {
       setSavingProfile(false);
     }
@@ -1024,7 +1022,7 @@ function Home({
     setProfileFeedback("");
     setProfileError("");
     if (newPassword.trim().length < 6) {
-      setProfileError("Пароль должен содержать минимум 6 символов.");
+      setProfileError(tr("Пароль должен содержать минимум 6 символов.", "Құпия сөз кемінде 6 таңбадан тұруы керек.", "Password must be at least 6 characters."));
       return;
     }
     setSavingProfile(true);
@@ -1032,9 +1030,9 @@ function Home({
       const { error } = await supabase.auth.updateUser({ password: newPassword.trim() });
       if (error) throw error;
       setNewPassword("");
-      setProfileFeedback("Пароль успешно обновлён!");
+      setProfileFeedback(tr("Пароль успешно обновлён!", "Құпия сөз сәтті жаңартылды!", "Password updated!"));
     } catch (err) {
-      setProfileError(err instanceof Error ? err.message : "Ошибка при смене пароля.");
+      setProfileError(err instanceof Error ? err.message : tr("Ошибка при смене пароля.", "Құпия сөзді өзгерту қатесі.", "Error changing password."));
     } finally {
       setSavingProfile(false);
     }
@@ -1644,7 +1642,7 @@ function Home({
       )}
 
       {panel === "profile" && (
-        <OverlayPanel title="Профиль студента" subtitle="L-easy · Личный кабинет" onClose={() => setPanel(null)}>
+        <OverlayPanel title={tr("Профиль студента", "Студент профилі", "Student Profile")} subtitle={tr("L-easy · Личный кабинет", "L-easy · Жеке кабинет", "L-easy · Personal account")} onClose={() => setPanel(null)}>
           {/* Карточка студента с уровнем, фото и XP */}
           <section className="rounded-card border border-line bg-card p-5">
             <Input
@@ -1656,10 +1654,10 @@ function Home({
             />
             <div className="flex items-center gap-4">
               <Button
-                aria-label="Изменить фото профиля"
+                aria-label={tr("Изменить фото профиля", "Профиль суретін өзгерту", "Change profile photo")}
                 className={`group relative grid size-16 shrink-0 place-items-center overflow-hidden rounded-full bg-gradient-to-br ${avatarGradient} text-xl font-bold text-white shadow-glow ring-2 ring-white/20`}
                 onClick={() => avatarInputRef.current?.click()}
-                title="Нажмите, чтобы загрузить фото"
+                title={tr("Нажмите, чтобы загрузить фото", "Сурет жүктеу үшін басыңыз", "Click to upload a photo")}
               >
                 {avatarUrl ? (
                   <img alt={userName || "Avatar"} className="size-full object-cover" src={avatarUrl} />
@@ -1667,17 +1665,17 @@ function Home({
                   <span>{initials}</span>
                 )}
                 <span className="absolute inset-0 flex items-center justify-center bg-black/50 text-[10px] font-bold text-white opacity-0 transition group-hover:opacity-100">
-                  Фото
+                  {tr("Фото", "Сурет", "Photo")}
                 </span>
               </Button>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <div className="truncate text-base font-bold text-white">{userName || "Студент"}</div>
+                  <div className="truncate text-base font-bold text-white">{userName || tr("Студент", "Студент", "Student")}</div>
                   <span className="shrink-0 rounded-full bg-accent-muted px-2.5 py-0.5 text-mini font-bold text-accent-bright">
-                    Ур. {level} · {levelTitle}
+                    {tr("Ур.", "Деңг.", "Lv.")} {level} · {levelTitle}
                   </span>
                 </div>
-                <div className="mt-0.5 truncate text-xs text-copy-muted">{userEmail || "Активный аккаунт"}</div>
+                <div className="mt-0.5 truncate text-xs text-copy-muted">{userEmail || tr("Активный аккаунт", "Белсенді аккаунт", "Active account")}</div>
                 <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs font-medium text-purple-light">
                   <span>{university}</span>
                   <span>·</span>
@@ -1688,8 +1686,8 @@ function Home({
 
             <div className="mt-4 rounded-xl bg-elevated p-3">
               <div className="flex items-center justify-between text-xs font-semibold text-white">
-                <span>Уровень {level} ({xp} XP)</span>
-                <span className="text-copy-muted">Ещё {150 - (xp % 150)} XP до Ур. {level + 1}</span>
+                <span>{tr("Уровень", "Деңгей", "Level")} {level} ({xp} XP)</span>
+                <span className="text-copy-muted">{tr(`Ещё ${150 - (xp % 150)} XP до Ур. ${level + 1}`, `${level + 1}-деңгейге дейін ${150 - (xp % 150)} XP қалды`, `${150 - (xp % 150)} XP to Lv. ${level + 1}`)}</span>
               </div>
               <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-card">
                 <div
@@ -1698,9 +1696,9 @@ function Home({
                 />
               </div>
               <div className="mt-2 flex items-center justify-between text-mini text-copy-muted">
-                <span>+50 XP за лекцию</span>
-                <span>+40 XP за конспект</span>
-                <span>+60 XP за тест</span>
+                <span>{tr("+50 XP за лекцию", "+50 XP дәріс үшін", "+50 XP per lecture")}</span>
+                <span>{tr("+40 XP за конспект", "+40 XP конспект үшін", "+40 XP per summary")}</span>
+                <span>{tr("+60 XP за тест", "+60 XP тест үшін", "+60 XP per quiz")}</span>
               </div>
             </div>
           </section>
@@ -1708,10 +1706,10 @@ function Home({
           {/* Реальная статистика из базы Supabase */}
           <section className="mt-3 grid grid-cols-4 gap-2">
             {[
-              [String(libraryCount ?? 0), "Лекций", "text-accent-bright"],
-              [String(summariesCount), "Конспектов", "text-purple-light"],
-              [String(quizzesCount), "Квизов", "text-green"],
-              [`${totalMinutes}м`, "Аудио", "text-white"],
+              [String(libraryCount ?? 0), tr("Лекций", "Дәрістер", "Lectures"), "text-accent-bright"],
+              [String(summariesCount), tr("Конспектов", "Конспектілер", "Summaries"), "text-purple-light"],
+              [String(quizzesCount), tr("Квизов", "Квиздер", "Quizzes"), "text-green"],
+              [`${totalMinutes}${tr("м", "мин", "m")}`, tr("Аудио", "Аудио", "Audio"), "text-white"],
             ].map(([val, label, color]) => (
               <div className="rounded-2xl border border-line bg-card p-3 text-center" key={label}>
                 <div className={`text-base font-bold ${color}`}>{val}</div>
@@ -1723,9 +1721,9 @@ function Home({
           {/* Переключатель вкладок профиля */}
           <div className="mt-4 grid grid-cols-3 rounded-xl bg-card p-1 border border-line">
             {[
-              ["overview", "Настройки"],
-              ["edit", "Данные"],
-              ["security", "Аккаунт"],
+              ["overview", tr("Настройки", "Баптаулар", "Settings")],
+              ["edit", tr("Данные", "Деректер", "Details")],
+              ["security", tr("Аккаунт", "Аккаунт", "Account")],
             ].map(([id, label]) => (
               <Button
                 className={`rounded-lg py-2.5 text-xs font-bold transition ${
@@ -1759,9 +1757,9 @@ function Home({
             <div className="mt-4 space-y-3">
               <div className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-card p-4">
                 <div>
-                  <div className="text-xs font-bold text-white">Тема оформления</div>
+                  <div className="text-xs font-bold text-white">{tr("Тема оформления", "Безендіру тақырыбы", "Appearance theme")}</div>
                   <div className="mt-0.5 text-mini text-copy-muted">
-                    {isDark ? "Тёмная тема" : "Светлая тема (по умолчанию)"}
+                    {isDark ? tr("Тёмная тема", "Қараңғы тақырып", "Dark theme") : tr("Светлая тема (по умолчанию)", "Жарық тақырып (әдепкі)", "Light theme (default)")}
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 rounded-xl border border-line bg-elevated p-1">
@@ -1774,7 +1772,7 @@ function Home({
                     type="button"
                   >
                     <Icon name="sun" className="size-3.5" />
-                    Светлая
+                    {tr("Светлая", "Жарық", "Light")}
                   </Button>
                   <Button
                     aria-pressed={isDark}
@@ -1785,7 +1783,7 @@ function Home({
                     type="button"
                   >
                     <Icon name="moon" className="size-3.5" />
-                    Тёмная
+                    {tr("Тёмная", "Қараңғы", "Dark")}
                   </Button>
                 </div>
               </div>
@@ -1793,15 +1791,15 @@ function Home({
               <div className="rounded-2xl border border-line bg-card p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <div className="text-xs font-bold text-white">Язык ИИ-конспектов по умолчанию</div>
-                    <div className="mt-0.5 text-mini text-copy-muted">Для Summary, Notes и AI Teacher</div>
+                    <div className="text-xs font-bold text-white">{tr("Язык ИИ-конспектов по умолчанию", "AI-конспектілердің әдепкі тілі", "Default AI summary language")}</div>
+                    <div className="mt-0.5 text-mini text-copy-muted">{tr("Для Summary, Notes и AI Teacher", "Summary, Notes және AI Оқытушы үшін", "For Summary, Notes and AI Teacher")}</div>
                   </div>
                   <Select
                     className="rounded-xl border border-line bg-elevated px-3 py-2 text-xs font-bold text-white"
                     onChange={(e) => {
                       const nextLang = e.target.value as Language;
                       setDefaultLang(nextLang);
-                      void saveUserProfile({ default_lang: nextLang }, `Язык по умолчанию: ${nextLang}`);
+                      void saveUserProfile({ default_lang: nextLang }, `${tr("Язык по умолчанию", "Әдепкі тіл", "Default language")}: ${nextLang}`);
                     }}
                     value={defaultLang}
                   >
@@ -1814,33 +1812,33 @@ function Home({
 
               {[
                 {
-                  title: "Живая транскрипция при записи",
-                  desc: "Распознавать речь в реальном времени",
+                  title: tr("Живая транскрипция при записи", "Жазу кезіндегі тірі транскрипция", "Live transcript while recording"),
+                  desc: tr("Распознавать речь в реальном времени", "Сөйлеуді нақты уақытта тану", "Recognize speech in real time"),
                   value: autoTranscribe,
                   toggle: () => {
                     const next = !autoTranscribe;
                     setAutoTranscribe(next);
-                    void saveUserProfile({ auto_transcribe: next }, "Настройка транскрипции сохранена");
+                    void saveUserProfile({ auto_transcribe: next }, tr("Настройка транскрипции сохранена", "Транскрипция баптауы сақталды", "Transcription setting saved"));
                   },
                 },
                 {
-                  title: "Акустическое шумоподавление",
-                  desc: "Фильтровать шум аудитории при записи",
+                  title: tr("Акустическое шумоподавление", "Акустикалық шуды басу", "Acoustic noise reduction"),
+                  desc: tr("Фильтровать шум аудитории при записи", "Жазу кезінде аудитория шуын сүзу", "Filter classroom noise while recording"),
                   value: defaultNoiseFilter,
                   toggle: () => {
                     const next = !defaultNoiseFilter;
                     setDefaultNoiseFilter(next);
-                    void saveUserProfile({ default_noise_filter: next }, "Настройка фильтра шума сохранена");
+                    void saveUserProfile({ default_noise_filter: next }, tr("Настройка фильтра шума сохранена", "Шу сүзгісінің баптауы сақталды", "Noise filter setting saved"));
                   },
                 },
                 {
-                  title: "Голосовая озвучка AI Teacher",
-                  desc: "Озвучивать ответы преподавателя в звонке",
+                  title: tr("Голосовая озвучка AI Teacher", "AI Оқытушының дауыспен жауабы", "AI Teacher voice replies"),
+                  desc: tr("Озвучивать ответы преподавателя в звонке", "Қоңырау кезінде жауаптарды дауыспен оқу", "Read teacher answers aloud during calls"),
                   value: voiceTts,
                   toggle: () => {
                     const next = !voiceTts;
                     setVoiceTts(next);
-                    void saveUserProfile({ voice_tts: next }, "Настройка озвучки сохранена");
+                    void saveUserProfile({ voice_tts: next }, tr("Настройка озвучки сохранена", "Дауыс баптауы сақталды", "Voice setting saved"));
                   },
                 },
               ].map((item) => (
@@ -1856,7 +1854,7 @@ function Home({
                     }`}
                     onClick={item.toggle}
                   >
-                    {item.value ? "Вкл" : "Выкл"}
+                    {item.value ? tr("Вкл", "Қосу", "On") : tr("Выкл", "Өшір", "Off")}
                   </Button>
                 </div>
               ))}
@@ -1870,7 +1868,7 @@ function Home({
                   }}
                 >
                   <Icon name="book" className="size-4 text-accent-bright" />
-                  Моя библиотека
+                  {tr("Моя библиотека", "Менің кітапханам", "My library")}
                 </Button>
                 <Button
                   className="flex items-center justify-center gap-2 rounded-2xl border border-line bg-card py-3.5 text-xs font-bold text-white"
@@ -1880,7 +1878,7 @@ function Home({
                   }}
                 >
                   <Icon name="test" className="size-4 text-purple-light" />
-                  Мои тесты
+                  {tr("Мои тесты", "Менің тестілерім", "My tests")}
                 </Button>
               </div>
             </div>
@@ -1890,16 +1888,16 @@ function Home({
           {profileTab === "edit" && (
             <div className="mt-4 space-y-3 rounded-card border border-line bg-card p-4">
               <label className="block">
-                <span className="mb-1.5 block text-xs font-semibold text-copy-muted">Имя и Фамилия</span>
+                <span className="mb-1.5 block text-xs font-semibold text-copy-muted">{tr("Имя и Фамилия", "Аты-жөні", "Full name")}</span>
                 <Input
                   className="w-full rounded-xl border border-line bg-elevated px-3.5 py-2.5 text-sm text-white outline-none"
                   onChange={(e) => setUserName(e.target.value)}
-                  placeholder="Например: Ералы Амангельдинов"
+                  placeholder={tr("Например: Ералы Амангельдинов", "Мысалы: Ералы Амангельдинов", "e.g. Eraly Amangeldinov")}
                   value={userName}
                 />
               </label>
               <label className="block">
-                <span className="mb-1.5 block text-xs font-semibold text-copy-muted">Университет / Колледж</span>
+                <span className="mb-1.5 block text-xs font-semibold text-copy-muted">{tr("Университет / Колледж", "Университет / Колледж", "University / College")}</span>
                 <Input
                   className="w-full rounded-xl border border-line bg-elevated px-3.5 py-2.5 text-sm text-white outline-none"
                   onChange={(e) => setUniversity(e.target.value)}
@@ -1908,7 +1906,7 @@ function Home({
                 />
               </label>
               <label className="block">
-                <span className="mb-1.5 block text-xs font-semibold text-copy-muted">Курс / Специальность / Группа</span>
+                <span className="mb-1.5 block text-xs font-semibold text-copy-muted">{tr("Курс / Специальность / Группа", "Курс / Мамандық / Топ", "Year / Major / Group")}</span>
                 <Input
                   className="w-full rounded-xl border border-line bg-elevated px-3.5 py-2.5 text-sm text-white outline-none"
                   onChange={(e) => setMajor(e.target.value)}
@@ -1919,35 +1917,35 @@ function Home({
 
               <div>
                 <div className="mb-2 flex items-center justify-between">
-                  <span className="text-xs font-semibold text-copy-muted">Фото и тема аватара</span>
+                  <span className="text-xs font-semibold text-copy-muted">{tr("Фото и тема аватара", "Аватар суреті мен түсі", "Avatar photo and color")}</span>
                   <div className="flex items-center gap-2">
                     <Button
                       className="text-xs font-bold text-accent-bright"
                       onClick={() => avatarInputRef.current?.click()}
                       type="button"
                     >
-                      Загрузить фото
+                      {tr("Загрузить фото", "Сурет жүктеу", "Upload photo")}
                     </Button>
                     {avatarUrl && (
                       <Button
                         className="text-xs font-bold text-red"
                         onClick={() => {
                           setAvatarUrl("");
-                          void saveUserProfile({ avatar_url: "" }, "Фото удалено");
+                          void saveUserProfile({ avatar_url: "" }, tr("Фото удалено", "Сурет жойылды", "Photo removed"));
                         }}
                         type="button"
                       >
-                        Удалить
+                        {tr("Удалить", "Жою", "Delete")}
                       </Button>
                     )}
                   </div>
                 </div>
                 <div className="grid grid-cols-4 gap-2">
                   {[
-                    ["aurora", "Синий", "from-accent to-purple"],
-                    ["emerald", "Изумруд", "from-green to-accent"],
-                    ["royal", "Неон", "from-purple to-accent"],
-                    ["crimson", "Рубин", "from-red to-purple"],
+                    ["aurora", tr("Синий", "Көк", "Blue"), "from-accent to-purple"],
+                    ["emerald", tr("Изумруд", "Зүмрәт", "Emerald"), "from-green to-accent"],
+                    ["royal", tr("Неон", "Неон", "Neon"), "from-purple to-accent"],
+                    ["crimson", tr("Рубин", "Лағыл", "Ruby"), "from-red to-purple"],
                   ].map(([key, label, grad]) => (
                     <Button
                       className={`flex flex-col items-center gap-1.5 rounded-xl border p-2 text-mini font-semibold ${
@@ -1968,7 +1966,7 @@ function Home({
                 disabled={savingProfile}
                 onClick={() => void saveUserProfile()}
               >
-                {savingProfile ? "Сохранение…" : "Сохранить профиль"}
+                {savingProfile ? tr("Сохранение…", "Сақталуда…", "Saving…") : tr("Сохранить профиль", "Профильді сақтау", "Save profile")}
               </Button>
             </div>
           )}
@@ -1978,25 +1976,25 @@ function Home({
             <div className="mt-4 space-y-3">
               <div className="rounded-card border border-line bg-card p-4 space-y-2 text-xs">
                 <div className="flex justify-between">
-                  <span className="text-copy-muted">Email аккаунта</span>
+                  <span className="text-copy-muted">{tr("Email аккаунта", "Аккаунт Email", "Account email")}</span>
                   <span className="font-semibold text-white">{userEmail}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-copy-muted">Дата регистрации</span>
-                  <span className="font-semibold text-white">{memberSince || "Октябрь 2026"}</span>
+                  <span className="text-copy-muted">{tr("Дата регистрации", "Тіркелген күні", "Member since")}</span>
+                  <span className="font-semibold text-white">{memberSince || tr("Октябрь 2026", "Қазан 2026", "October 2026")}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-copy-muted">Защита данных</span>
-                  <span className="font-semibold text-green">Supabase RLS · Активна</span>
+                  <span className="text-copy-muted">{tr("Защита данных", "Деректерді қорғау", "Data protection")}</span>
+                  <span className="font-semibold text-green">Supabase RLS · {tr("Активна", "Белсенді", "Active")}</span>
                 </div>
               </div>
 
               <div className="rounded-card border border-line bg-card p-4">
-                <div className="text-xs font-bold text-white">Изменить пароль</div>
+                <div className="text-xs font-bold text-white">{tr("Изменить пароль", "Құпия сөзді өзгерту", "Change password")}</div>
                 <Input
                   className="mt-2.5 w-full rounded-xl border border-line bg-elevated px-3.5 py-2.5 text-sm text-white outline-none placeholder:text-copy-dim"
                   onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Новый пароль (мин. 6 символов)"
+                  placeholder={tr("Новый пароль (мин. 6 символов)", "Жаңа құпия сөз (кемінде 6 таңба)", "New password (min. 6 characters)")}
                   type="password"
                   value={newPassword}
                 />
@@ -2005,7 +2003,7 @@ function Home({
                   disabled={savingProfile || !newPassword.trim()}
                   onClick={() => void handlePasswordUpdate()}
                 >
-                  {savingProfile ? "Обновление…" : "Обновить пароль"}
+                  {savingProfile ? tr("Обновление…", "Жаңартылуда…", "Updating…") : tr("Обновить пароль", "Құпия сөзді жаңарту", "Update password")}
                 </Button>
               </div>
             </div>
@@ -2023,7 +2021,7 @@ function Home({
               void supabase.auth.signOut();
             }}
           >
-            Выйти из аккаунта
+            {tr("Выйти из аккаунта", "Аккаунттан шығу", "Sign out")}
           </Button>
         </OverlayPanel>
       )}
