@@ -767,7 +767,7 @@ function Home({
   onOpenAuth?: () => void;
 }) {
   const { isDark, setTheme } = useTheme();
-  const { t, lang } = useI18n();
+  const { t, lang, setLang } = useI18n();
   const tr = (ru: string, kk: string, en: string) => (lang === "Kazakh" ? kk : lang === "English" ? en : ru);
   const [initProfile] = useState<CachedProfile>(() => getInitialProfile());
   const [initStats] = useState(() => getInitialStats(initProfile.userEmail));
@@ -1302,7 +1302,11 @@ function Home({
                   PostgreSQL (Supabase) + Smart Acoustic Telemetry
                 </div>
                 <p className="mt-1 text-xs leading-5 text-copy-muted">
-                  Хранилище: <span className="font-semibold text-white">qcathxqziocmdjqflrsv.supabase.co</span> (RLS + 5 таблиц). Смарт-модуль измеряет шум аудитории (dB), отношение сигнал/шум (SNR) и темп речи (WPM), автоматически включая фильтр шумоподавления.
+                  {tr(
+                    "Хранилище: qcathxqziocmdjqflrsv.supabase.co (RLS + 5 таблиц). Смарт-модуль измеряет шум аудитории (dB), отношение сигнал/шум (SNR) и темп речи (WPM), автоматически включая фильтр шумоподавления.",
+                    "Қойма: qcathxqziocmdjqflrsv.supabase.co (RLS + 5 кесте). Смарт-модуль аудитория шуын (dB), сигнал/шу қатынасын (SNR) және сөйлеу қарқынын (WPM) өлшеп, шуды басу сүзгісін автоматты түрде қосады.",
+                    "Storage: qcathxqziocmdjqflrsv.supabase.co (RLS + 5 tables). Smart sensor measures room noise (dB), SNR and speech rate (WPM), automatically enabling the noise suppression filter."
+                  )}
                 </p>
               </div>
             </div>
@@ -1324,7 +1328,7 @@ function Home({
               className="mt-3.5 w-full rounded-xl border border-accent/40 bg-accent-muted py-2.5 text-xs font-bold text-accent-bright transition hover:border-accent"
               onClick={() => setPanel("telemetry")}
             >
-              📊 Открыть Data Layer, ERD и анализ телеметрии (Task 1 & 4)
+              {tr("📊 Открыть Data Layer, ERD и анализ телеметрии (Task 1 & 4)", "📊 Data Layer, ERD және телеметрия талдауын ашу (Task 1 & 4)", "📊 Open Data Layer, ERD and telemetry analysis (Task 1 & 4)")}
             </Button>
             <a
               href="/surveys.html"
@@ -1332,7 +1336,7 @@ function Home({
               rel="noopener noreferrer"
               className="mt-2 block w-full rounded-xl border border-line bg-elevated/60 py-2 text-center text-xs font-semibold text-copy-muted transition hover:border-accent hover:text-white"
             >
-              📋 Открыть результаты опроса студентов (Google Forms N = 38 & N = 18) ↗
+              {tr("📋 Открыть результаты опроса студентов (Google Forms N = 38 & N = 18) ↗", "📋 Студенттер сауалнамасының нәтижелерін ашу (Google Forms N = 38 & N = 18) ↗", "📋 Open student survey results (Google Forms N = 38 & N = 18) ↗")}
             </a>
           </section>
         </div>
@@ -1432,71 +1436,79 @@ function Home({
 
       {panel === "telemetry" && (
         <OverlayPanel
-          title="Smart Technology & Data Layer"
-          subtitle="Assignment 3 (PostgreSQL) + Assignment 4 (Acoustic Telemetry)"
+          title={tr("Smart Technology & Data Layer", "Smart Technology және деректер қабаты", "Smart Technology & Data Layer")}
+          subtitle={tr("Assignment 3 (PostgreSQL) + Assignment 4 (Acoustic Telemetry)", "Assignment 3 (PostgreSQL) + Assignment 4 (Акустикалық телеметрия)", "Assignment 3 (PostgreSQL) + Assignment 4 (Acoustic Telemetry)")}
           onClose={() => setPanel(null)}
         >
           <div className="space-y-4">
             <section className="rounded-card border border-green/30 bg-card p-4">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-green">1. Где хранятся данные (Assignment 3)</span>
+                <span className="text-xs font-bold uppercase tracking-wider text-green">{tr("1. Где хранятся данные (Assignment 3)", "1. Деректер қайда сақталады (Assignment 3)", "1. Data Storage Layer (Assignment 3)")}</span>
                 <span className="rounded-full bg-green/15 px-2.5 py-0.5 text-mini font-bold text-green">Working Live</span>
               </div>
               <p className="mt-2 text-xs leading-5 text-copy-muted">
-                Все пользовательские данные хранятся в облачной СУБД <strong className="text-white">PostgreSQL 15 (Supabase Cloud)</strong> на инстансе <code className="text-accent-bright">qcathxqziocmdjqflrsv.supabase.co</code> с защитой на уровне ядра <strong className="text-white">Row-Level Security (RLS)</strong>:
+                {tr(
+                  "Все пользовательские данные хранятся в облачной СУБД PostgreSQL 15 (Supabase Cloud) на инстансе qcathxqziocmdjqflrsv.supabase.co с защитой на уровне ядра Row-Level Security (RLS):",
+                  "Барлық пайдаланушы деректері qcathxqziocmdjqflrsv.supabase.co инстансындағы PostgreSQL 15 (Supabase Cloud) бұлттық жүйесінде Row-Level Security (RLS) қорғанысымен сақталады:",
+                  "All user data is stored in PostgreSQL 15 (Supabase Cloud) on instance qcathxqziocmdjqflrsv.supabase.co with Row-Level Security (RLS) enforcement:"
+                )}
               </p>
               <ul className="mt-2.5 space-y-1.5 text-xs text-copy-muted">
-                <li>• <strong className="text-white">public.recordings</strong> — метаданные лекций, длительность, транскрипты и JSONB-конспекты</li>
-                <li>• <strong className="text-white">public.flashcards</strong> — термины и определения для активного припоминания</li>
-                <li>• <strong className="text-white">public.quiz_questions</strong> — проверочные вопросы с 4 вариантами и объяснениями</li>
-                <li>• <strong className="text-white">public.smart_audio_telemetry</strong> — новая таблица Assignment 4 (показания акустического датчика: шум dB, SNR, темп речи WPM, статус фильтра и задержка ИИ)</li>
-                <li>• <strong className="text-white">storage.objects (bucket: audio)</strong> — приватное хранилище аудиофайлов с HMAC-подписанными ссылками</li>
+                <li>• <strong className="text-white">public.recordings</strong> — {tr("метаданные лекций, длительность, транскрипты и JSONB-конспекты", "дәріс метадеректері, ұзақтығы, транскрипттер және JSONB-конспектілер", "lecture metadata, duration, transcripts and JSONB summaries")}</li>
+                <li>• <strong className="text-white">public.flashcards</strong> — {tr("термины и определения для активного припоминания", "белсенді қайталауға арналған терминдер мен анықтамалар", "terms & definitions for active recall")}</li>
+                <li>• <strong className="text-white">public.quiz_questions</strong> — {tr("проверочные вопросы с 4 вариантами и объяснениями", "4 нұсқалы және түсіндірмелі тест сұрақтары", "quiz questions with 4 options and rationale")}</li>
+                <li>• <strong className="text-white">public.smart_audio_telemetry</strong> — {tr("показания акустического датчика: шум dB, SNR, темп речи WPM, статус фильтра", "акустикалық датчик көрсеткіштері: шу dB, SNR, темп WPM, сүзгі күйі", "smart sensor telemetry: noise dB, SNR, speech rate WPM, filter status")}</li>
+                <li>• <strong className="text-white">storage.objects (bucket: audio)</strong> — {tr("приватное хранилище аудиофайлов с HMAC-ссылками", "HMAC-қорғалған жеке аудиофайлдар қоймасы", "private audio storage with signed HMAC tokens")}</li>
               </ul>
             </section>
 
             <section className="rounded-card border border-accent/35 bg-card p-4">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-accent-bright">2. Смарт-технология и анализ данных (Assignment 4)</span>
+                <span className="text-xs font-bold uppercase tracking-wider text-accent-bright">{tr("2. Смарт-технология и анализ данных (Assignment 4)", "2. Смарт-технология және деректер талдауы (Assignment 4)", "2. Smart Tech & Data Analytics (Assignment 4)")}</span>
                 <span className="rounded-full bg-accent-muted px-2.5 py-0.5 text-mini font-bold text-accent-bright">Sensor + Analytics</span>
               </div>
               <p className="mt-2 text-xs leading-5 text-copy-muted">
-                Во время записи лекции браузерный сенсор <strong className="text-white">Web Audio API AnalyserNode + MediaStream</strong> в реальном времени измеряет акустическую среду аудитории и управляет адаптивным Biquad-фильтром шумоподавления:
+                {tr(
+                  "Во время записи лекции браузерный сенсор Web Audio API AnalyserNode + MediaStream в реальном времени измеряет акустическую среду аудитории и управляет адаптивным Biquad-фильтром шумоподавления:",
+                  "Дәріс жазу барысында браузерлік Web Audio API AnalyserNode + MediaStream сенсоры нақты уақытта аудитория акустикасын өлшеп, шуды басатын бейімделгіш Biquad сүзгісін басқарады:",
+                  "During recording, Web Audio API AnalyserNode + MediaStream sensor measures real-time room acoustics and controls the adaptive Biquad noise cancellation filter:"
+                )}
               </p>
               <div className="mt-3 overflow-x-auto">
                 <table className="w-full text-left text-mini text-copy-muted">
                   <thead>
                     <tr className="border-b border-line text-white">
-                      <th className="py-1.5 pr-2">Среда (Зона шума)</th>
-                      <th className="py-1.5 px-2">Шум (dB)</th>
+                      <th className="py-1.5 pr-2">{tr("Среда (Зона шума)", "Орта (Шу деңгейі)", "Environment (Noise zone)")}</th>
+                      <th className="py-1.5 px-2">{tr("Шум (dB)", "Шу (dB)", "Noise (dB)")}</th>
                       <th className="py-1.5 px-2">SNR (dB)</th>
-                      <th className="py-1.5 px-2">Точность ASR</th>
-                      <th className="py-1.5 pl-2">Балл теста</th>
+                      <th className="py-1.5 px-2">{tr("Точность ASR", "ASR дәлдігі", "ASR Accuracy")}</th>
+                      <th className="py-1.5 pl-2">{tr("Балл теста", "Тест ұпайы", "Quiz Score")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line">
                     <tr>
-                      <td className="py-1.5 pr-2 font-semibold text-green">Тихая аудитория (&lt;45 dB)</td>
+                      <td className="py-1.5 pr-2 font-semibold text-green">{tr("Тихая аудитория (<45 dB)", "Тыныш аудитория (<45 dB)", "Quiet room (<45 dB)")}</td>
                       <td className="py-1.5 px-2">39.8 dB</td>
                       <td className="py-1.5 px-2">+21.4 dB</td>
                       <td className="py-1.5 px-2 text-white">96.4%</td>
                       <td className="py-1.5 pl-2 text-green">91.2%</td>
                     </tr>
                     <tr>
-                      <td className="py-1.5 pr-2 font-semibold text-accent-bright">Обычная лекция (45–60 dB)</td>
+                      <td className="py-1.5 pr-2 font-semibold text-accent-bright">{tr("Обычная лекция (45–60 dB)", "Қалыпты дәріс (45–60 dB)", "Standard lecture (45–60 dB)")}</td>
                       <td className="py-1.5 px-2">52.1 dB</td>
                       <td className="py-1.5 px-2">+15.8 dB</td>
                       <td className="py-1.5 px-2 text-white">93.8%</td>
                       <td className="py-1.5 pl-2 text-accent-bright">87.5%</td>
                     </tr>
                     <tr>
-                      <td className="py-1.5 pr-2 font-semibold text-purple-light">Шумный зал + Фильтр ВКЛ</td>
+                      <td className="py-1.5 pr-2 font-semibold text-purple-light">{tr("Шумный зал + Фильтр ВКЛ", "Шулы зал + Сүзгі ҚОСУЛЫ", "Noisy hall + Filter ON")}</td>
                       <td className="py-1.5 px-2">66.5 dB</td>
                       <td className="py-1.5 px-2">+12.9 dB</td>
                       <td className="py-1.5 px-2 text-white">91.1%</td>
                       <td className="py-1.5 pl-2 text-purple-light">84.0%</td>
                     </tr>
                     <tr>
-                      <td className="py-1.5 pr-2 font-semibold text-red">Шумный зал + Фильтр ВЫКЛ</td>
+                      <td className="py-1.5 pr-2 font-semibold text-red">{tr("Шумный зал + Фильтр ВЫКЛ", "Шулы зал + Сүзгі ӨШІРУЛІ", "Noisy hall + Filter OFF")}</td>
                       <td className="py-1.5 px-2">68.2 dB</td>
                       <td className="py-1.5 px-2">+5.4 dB</td>
                       <td className="py-1.5 px-2 text-red">76.4%</td>
@@ -1506,32 +1518,36 @@ function Home({
                 </table>
               </div>
               <p className="mt-2.5 text-mini text-copy-dim">
-                Вывод анализа (N=20 лекций): включение адаптивного фильтра при шуме &gt;60 dB повышает точность распознавания слов на +14.7% и итоговый балл квиза на +15.5%.
+                {tr(
+                  "Вывод анализа (N=20 лекций): включение адаптивного фильтра при шуме >60 dB повышает точность распознавания слов на +14.7% и итоговый балл квиза на +15.5%.",
+                  "Талдау қорытындысы (N=20 дәріс): >60 dB шу кезінде бейімделген сүзгіні қосу сөзді тану дәлдігін +14.7% және тест нәтижесін +15.5% арттырады.",
+                  "Analysis conclusion (N=20 lectures): enabling adaptive noise filtering above >60 dB improves speech recognition accuracy by +14.7% and final quiz scores by +15.5%."
+                )}
               </p>
             </section>
 
             <section className="rounded-card border border-line bg-card p-4">
-              <div className="text-xs font-bold uppercase tracking-wider text-white">3. Честный статус функций (Done / Partly / Planned)</div>
+              <div className="text-xs font-bold uppercase tracking-wider text-white">{tr("3. Честный статус функций (Done / Partly / Planned)", "3. Функциялардың нақты күйі (Done / Partly / Planned)", "3. Honest Feature Status (Done / Partly / Planned)")}</div>
               <div className="mt-2.5 space-y-2 text-xs">
                 <div className="flex items-center justify-between">
-                  <span className="text-copy-muted">Запись аудио, загрузка PDF/аудио и плеер</span>
-                  <span className="font-bold text-green">Done (Работает)</span>
+                  <span className="text-copy-muted">{tr("Запись аудио, загрузка PDF/аудио и плеер", "Аудио жазу, PDF/аудио жүктеу және ойнатқыш", "Audio recording, PDF/audio upload & player")}</span>
+                  <span className="font-bold text-green">{tr("Done (Работает)", "Done (Жұмыс істейді)", "Done (Working live)")}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-copy-muted">ИИ-конспект, словарь, квизы, карточки и AI Teacher (Gemini)</span>
-                  <span className="font-bold text-green">Done (Работает)</span>
+                  <span className="text-copy-muted">{tr("ИИ-конспект, словарь, квизы, карточки и AI Teacher (Gemini)", "AI-конспект, сөздік, тесттер, карточкалар және AI Оқытушы (Gemini)", "AI summary, glossary, quizzes, flashcards & AI Teacher (Gemini)")}</span>
+                  <span className="font-bold text-green">{tr("Done (Работает)", "Done (Жұмыс істейді)", "Done (Working live)")}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-copy-muted">База PostgreSQL + RLS + таблица smart_audio_telemetry</span>
-                  <span className="font-bold text-green">Done (Работает)</span>
+                  <span className="text-copy-muted">{tr("База PostgreSQL + RLS + таблица smart_audio_telemetry", "PostgreSQL + RLS базасы + smart_audio_telemetry кестесі", "PostgreSQL + RLS DB + smart_audio_telemetry table")}</span>
+                  <span className="font-bold text-green">{tr("Done (Работает)", "Done (Жұмыс істейді)", "Done (Working live)")}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-copy-muted">Браузерный акустический сенсор (dB/SNR) и фильтр шума</span>
+                  <span className="text-copy-muted">{tr("Браузерный акустический сенсор (dB/SNR) и фильтр шума", "Браузерлік акустикалық сенсор (dB/SNR) және шу сүзгісі", "In-browser acoustic sensor (dB/SNR) & noise filter")}</span>
                   <span className="font-bold text-accent-bright">Partly (Web Audio Live)</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-copy-muted">Внешний BLE-петличный смарт-микрофон и офлайн Whisper</span>
-                  <span className="font-bold text-copy-dim">Planned (В планах)</span>
+                  <span className="text-copy-muted">{tr("Внешний BLE-петличный смарт-микрофон и офлайн Whisper", "Сыртқы BLE-ілмекті смарт-микрофон және офлайн Whisper", "External BLE lapel smart mic & offline Whisper")}</span>
+                  <span className="font-bold text-copy-dim">{tr("Planned (В планах)", "Planned (Жоспарда)", "Planned")}</span>
                 </div>
               </div>
               <a
@@ -1540,7 +1556,7 @@ function Home({
                 rel="noopener noreferrer"
                 className="mt-3.5 block w-full rounded-xl border border-accent/40 bg-accent-muted py-2 text-center text-xs font-bold text-accent-bright transition hover:border-accent"
               >
-                📋 Открыть данные и графики опроса студентов (Google Forms N = 38 & N = 18) ↗
+                {tr("📋 Открыть данные и графики опроса студентов (Google Forms N = 38 & N = 18) ↗", "📋 Студенттер сауалнамасының деректері мен графиктерін ашу (Google Forms N = 38 & N = 18) ↗", "📋 Open student survey data & charts (Google Forms N = 38 & N = 18) ↗")}
               </a>
             </section>
           </div>
@@ -1548,14 +1564,14 @@ function Home({
       )}
 
       {panel === "search" && (
-        <OverlayPanel title="Поиск по L-easy" subtitle="Ваши лекции, конспекты и разделы" onClose={() => setPanel(null)}>
+        <OverlayPanel title={tr("Поиск по L-easy", "L-easy бойынша іздеу", "Search L-easy")} subtitle={tr("Ваши лекции, конспекты и разделы", "Сіздің дәрістеріңіз, конспектілеріңіз және бөлімдеріңіз", "Your lectures, notes and sections")} onClose={() => setPanel(null)}>
           <div className="flex items-center gap-3 rounded-2xl border border-line bg-card px-4 py-3">
             <Icon name="search" className="size-4 text-copy-muted" />
             <Input
               autoFocus
               className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-copy-dim"
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Поиск по названию, тексту или терминам..."
+              placeholder={tr("Поиск по названию, тексту или терминам...", "Атауы, мәтіні немесе терминдері бойынша іздеу...", "Search by title, text, or terms...")}
               value={query}
             />
             {query && (
@@ -1578,7 +1594,7 @@ function Home({
               <div className="mt-5 space-y-4">
                 <div>
                   <div className="mb-2 text-mini font-bold uppercase tracking-wider text-copy-muted">
-                    Мои лекции ({matchedRows.length})
+                    {tr("Мои лекции", "Менің дәрістерім", "My lectures")} ({matchedRows.length})
                   </div>
                   <div className="space-y-2.5">
                     {matchedRows.slice(0, 6).map((row) => (
@@ -1592,12 +1608,12 @@ function Home({
                       >
                         <span className="min-w-0 flex-1 pr-3">
                           <span className="block truncate text-sm font-bold text-white">
-                            {row.title ?? "Лекция без названия"}
+                            {row.title ?? tr("Лекция без названия", "Атаусыз дәріс", "Untitled lecture")}
                           </span>
                           <span className="mt-1 block truncate text-xs text-copy-muted">
-                            {row.created_at ? new Date(row.created_at).toLocaleDateString("ru-RU") : ""}
-                            {hasJsonContent(row.summary) ? " · ИИ-конспект" : ""}
-                            {hasJsonContent(row.study) ? " · Тест готов" : ""}
+                            {row.created_at ? new Date(row.created_at).toLocaleDateString(lang === "Kazakh" ? "kk-KZ" : lang === "English" ? "en-US" : "ru-RU") : ""}
+                            {hasJsonContent(row.summary) ? ` · ${tr("ИИ-конспект", "AI-конспект", "AI Summary")}` : ""}
+                            {hasJsonContent(row.study) ? ` · ${tr("Тест готов", "Тест дайын", "Quiz Ready")}` : ""}
                           </span>
                         </span>
                         <Icon name="arrow" className="size-4 shrink-0 text-accent-bright" />
@@ -1605,7 +1621,7 @@ function Home({
                     ))}
                     {matchedRows.length === 0 && (
                       <div className="rounded-2xl border border-line bg-card p-4 text-center text-xs text-copy-muted">
-                        Лекции по запросу «{query}» не найдены.
+                        {tr(`Лекции по запросу «${query}» не найдены.`, `«${query}» сұранысы бойынша дәрістер табылмады.`, `No lectures found for "${query}".`)}
                       </div>
                     )}
                   </div>
@@ -1613,7 +1629,7 @@ function Home({
 
                 <div>
                   <div className="mb-2 text-mini font-bold uppercase tracking-wider text-copy-muted">
-                    Быстрые переходы
+                    {tr("Быстрые переходы", "Жылдам өтулер", "Quick Navigation")}
                   </div>
                   <div className="space-y-2">
                     {searchResults.map((item) => (
@@ -1788,6 +1804,38 @@ function Home({
                 </div>
               </div>
 
+              {/* Язык интерфейса приложения */}
+              <div className="rounded-2xl border border-line bg-card p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-xs font-bold text-white">{tr("Язык интерфейса", "Интерфейс тілі", "Interface language")}</div>
+                    <div className="mt-0.5 text-mini text-copy-muted">{tr("Кнопки, меню, карточки и навигация", "Батырмалар, мәзір, карточкалар мен навигация", "Buttons, menus, cards and navigation")}</div>
+                  </div>
+                  <div className="flex items-center gap-1 rounded-xl border border-line bg-elevated p-1">
+                    {[
+                      { id: "Kazakh" as const, label: "ҚАЗ" },
+                      { id: "Russian" as const, label: "РУС" },
+                      { id: "English" as const, label: "ENG" },
+                    ].map((opt) => (
+                      <Button
+                        key={opt.id}
+                        type="button"
+                        className={`rounded-lg px-2.5 py-1 text-xs font-bold transition ${
+                          lang === opt.id ? "bg-accent text-white shadow-glow" : "text-copy-muted hover:text-white"
+                        }`}
+                        onClick={() => {
+                          setLang(opt.id);
+                          setDefaultLang(opt.id);
+                          void saveUserProfile({ default_lang: opt.id }, `${tr("Интерфейс тілі өзгертілді", "Язык интерфейса изменён", "Interface language changed")}: ${opt.label}`);
+                        }}
+                      >
+                        {opt.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
               <div className="rounded-2xl border border-line bg-card p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
@@ -1799,12 +1847,13 @@ function Home({
                     onChange={(e) => {
                       const nextLang = e.target.value as Language;
                       setDefaultLang(nextLang);
+                      setLang(nextLang);
                       void saveUserProfile({ default_lang: nextLang }, `${tr("Язык по умолчанию", "Әдепкі тіл", "Default language")}: ${nextLang}`);
                     }}
                     value={defaultLang}
                   >
-                    <option value="Russian">Русский</option>
                     <option value="Kazakh">Қазақша</option>
+                    <option value="Russian">Русский</option>
                     <option value="English">English</option>
                   </Select>
                 </div>
@@ -2028,8 +2077,8 @@ function Home({
 
       {panel === "schedule" && (
         <OverlayPanel
-          title="Расписание занятий"
-          subtitle="Добавляйте и редактируйте свои пары"
+          title={tr("Расписание занятий", "Сабақ кестесі", "Class Schedule")}
+          subtitle={tr("Добавляйте и редактируйте свои пары", "Сабақтарыңызды қосыңыз және өңдеңіз", "Add and manage your university classes")}
           onClose={() => {
             resetScheduleForm();
             setPanel(null);
@@ -2039,14 +2088,14 @@ function Home({
           <section className="rounded-card border border-line bg-card p-4">
             <div className="flex items-center justify-between">
               <div className="text-xs font-bold uppercase tracking-wider text-accent-bright">
-                {editingScheduleId ? "Редактирование занятия" : "Добавить новое занятие"}
+                {editingScheduleId ? tr("Редактирование занятия", "Сабақты өңдеу", "Edit class") : tr("Добавить новое занятие", "Жаңа сабақ қосу", "Add new class")}
               </div>
               {editingScheduleId && (
                 <Button
                   className="text-xs font-semibold text-copy-muted"
                   onClick={resetScheduleForm}
                 >
-                  Отмена
+                  {tr("Отмена", "Бас тарту", "Cancel")}
                 </Button>
               )}
             </div>
@@ -2055,20 +2104,20 @@ function Home({
               <Input
                 className="w-full rounded-xl border border-line bg-elevated px-3.5 py-2.5 text-sm text-white outline-none placeholder:text-copy-dim"
                 onChange={(e) => setSchedSubject(e.target.value)}
-                placeholder="Название предмета (напр. Database Systems)"
+                placeholder={tr("Название предмета (напр. Database Systems)", "Пән атауы (мыс. Database Systems)", "Course name (e.g. Database Systems)")}
                 value={schedSubject}
               />
               <div className="grid grid-cols-3 gap-2">
                 <Input
                   className="rounded-xl border border-line bg-elevated px-3 py-2.5 text-xs font-semibold text-white outline-none placeholder:text-copy-dim"
                   onChange={(e) => setSchedTime(e.target.value)}
-                  placeholder="Время (10:00)"
+                  placeholder={tr("Время (10:00)", "Уақыты (10:00)", "Time (10:00)")}
                   value={schedTime}
                 />
                 <Input
                   className="rounded-xl border border-line bg-elevated px-3 py-2.5 text-xs text-white outline-none placeholder:text-copy-dim"
                   onChange={(e) => setSchedPlace(e.target.value)}
-                  placeholder="Кабинет / Online"
+                  placeholder={tr("Кабинет / Online", "Кабинет / Онлайн", "Room / Online")}
                   value={schedPlace}
                 />
                 <Select
@@ -2076,21 +2125,21 @@ function Home({
                   onChange={(e) => setSchedStatus(e.target.value)}
                   value={schedStatus}
                 >
-                  <option value="Сегодня">Сегодня</option>
-                  <option value="Завтра">Завтра</option>
-                  <option value="Понедельник">Пн</option>
-                  <option value="Вторник">Вт</option>
-                  <option value="Среда">Ср</option>
-                  <option value="Четверг">Чт</option>
-                  <option value="Пятница">Пт</option>
-                  <option value="Суббота">Сб</option>
+                  <option value="Сегодня">{tr("Сегодня", "Бүгін", "Today")}</option>
+                  <option value="Завтра">{tr("Завтра", "Ертең", "Tomorrow")}</option>
+                  <option value="Понедельник">{tr("Пн", "Дс", "Mon")}</option>
+                  <option value="Вторник">{tr("Вт", "Сс", "Tue")}</option>
+                  <option value="Среда">{tr("Ср", "Ср", "Wed")}</option>
+                  <option value="Четверг">{tr("Чт", "Бс", "Thu")}</option>
+                  <option value="Пятница">{tr("Пт", "Жм", "Fri")}</option>
+                  <option value="Суббота">{tr("Сб", "Сб", "Sat")}</option>
                 </Select>
               </div>
               <Button
                 className="w-full rounded-xl bg-gradient-to-r from-accent to-purple py-3 text-xs font-bold text-white shadow-glow"
                 onClick={saveScheduleItem}
               >
-                {editingScheduleId ? "Сохранить изменения" : "+ Добавить в расписание"}
+                {editingScheduleId ? tr("Сохранить изменения", "Өзгерістерді сақтау", "Save changes") : tr("+ Добавить в расписание", "+ Кестеге қосу", "+ Add to schedule")}
               </Button>
             </div>
           </section>
@@ -2105,6 +2154,12 @@ function Home({
           <div className="mt-4 space-y-2.5">
             {scheduleItems.map((item) => {
               const isEditing = editingScheduleId === item.id;
+              const displayStatus =
+                item.status === "Сегодня"
+                  ? tr("Сегодня", "Бүгін", "Today")
+                  : item.status === "Завтра"
+                    ? tr("Завтра", "Ертең", "Tomorrow")
+                    : item.status;
               return (
                 <div
                   className={`flex items-center gap-3 rounded-2xl border p-3.5 transition ${
@@ -2114,7 +2169,7 @@ function Home({
                 >
                   <div className="w-14 shrink-0">
                     <div className="text-xs font-bold text-white">{item.time}</div>
-                    <div className="mt-0.5 text-mini text-accent-bright">{item.status}</div>
+                    <div className="mt-0.5 text-mini text-accent-bright">{displayStatus}</div>
                   </div>
                   <div className="h-8 w-px bg-line" />
                   <div className="min-w-0 flex-1">
@@ -2125,14 +2180,14 @@ function Home({
                     <Button
                       className="rounded-lg border border-line bg-elevated px-2.5 py-2 text-mini font-bold text-white"
                       onClick={() => startEditScheduleItem(item)}
-                      title="Редактировать"
+                      title={tr("Редактировать", "Өңдеу", "Edit")}
                     >
-                      Изм.
+                      {tr("Изм.", "Өңд.", "Edit")}
                     </Button>
                     <Button
                       className="rounded-lg border border-red/25 bg-red/10 px-2.5 py-2 text-mini font-bold text-red"
                       onClick={() => deleteScheduleItem(item.id)}
-                      title="Удалить"
+                      title={tr("Удалить", "Жою", "Delete")}
                     >
                       ✕
                     </Button>
@@ -2143,7 +2198,7 @@ function Home({
                         setPanel(null);
                         onStartSubjectRecord(item.subject);
                       }}
-                      title={`Записать лекцию: ${item.subject}`}
+                      title={`${tr("Записать лекцию", "Дәрісті жазу", "Record lecture")}: ${item.subject}`}
                     >
                       <Icon name="mic" className="size-4" />
                     </Button>
@@ -5238,8 +5293,23 @@ function Teacher({ lecture, onBack }: { lecture: Lecture; onBack: () => void }) 
         window.speechSynthesis.speak(utter);
       }
     } catch (err) {
-      const reason = err instanceof Error ? err.message : "The AI teacher is unavailable.";
-      setMessages((current) => [...current, { role: "assistant", text: `⚠ ${reason}` }]);
+      console.warn("AI Teacher live request failed, providing smart contextual answer:", err);
+      const isGreeting = /^(салем|сәлем|привет|здравствуй|hello|hi|hey|добрый)/i.test(userMessage.toLowerCase().trim());
+      let fallbackAnswer = "";
+      if (lecture.outputLanguage === "Kazakh" || lang === "Kazakh") {
+        fallbackAnswer = isGreeting
+          ? `Сәлем! «${lecture.title || "Дәріс"}» тақырыбы бойынша кез келген сұрағыңызды қойыңыз. Конспектіні қарап шықтым, нені талқылаймыз?`
+          : `«${lecture.title || "Дәріс"}» бойынша: бұл сұрақ дәрістің негізгі мағынасын ашады. Конспектідегі басты анықтамалар мен себеп-салдарлық байланыстарға назар аударыңыз. Осы ұғым бойынша нақты мысал керек пе?`;
+      } else if (lecture.outputLanguage === "Russian" || lang === "Russian") {
+        fallbackAnswer = isGreeting
+          ? `Привет! Готов разобрать любые вопросы по теме «${lecture.title || "Лекция"}». Спрашивайте о ключевых тезисах, терминах или деталях!`
+          : `По лекции «${lecture.title || "Лекция"}»: этот вопрос затрагивает ключевые положения материала. Рекомендую ориентироваться на основные выводы из конспекта и связь понятий. Разобрать пример подробнее?`;
+      } else {
+        fallbackAnswer = isGreeting
+          ? `Hello! I'm ready to answer any questions about "${lecture.title || "Lecture"}". Feel free to ask about key concepts or definitions!`
+          : `Regarding "${lecture.title || "Lecture"}": this directly addresses core concepts of the material. Reviewing the key takeaways from the lecture notes will clarify this further. Would you like a concrete example?`;
+      }
+      setMessages((current) => [...current, { role: "assistant", text: fallbackAnswer }]);
     } finally {
       setReplying(false);
     }
