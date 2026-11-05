@@ -22,6 +22,7 @@ import {
 } from "./lib/supabase";
 import type { SummaryData } from "./summarize";
 import { useTheme } from "./theme";
+import { useI18n, type UILanguage } from "./i18n";
 import * as pdfjsLib from 'pdfjs-dist';
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
@@ -279,6 +280,41 @@ function Heading({
   return createElement(`h${level}`, { className }, children);
 }
 
+export function LanguageToggle({ className = "" }: { className?: string }) {
+  const { lang, setLang } = useI18n();
+  const options: { id: UILanguage; label: string; flag: string }[] = [
+    { id: "Kazakh", label: "Қаз", flag: "🇰🇿" },
+    { id: "Russian", label: "Рус", flag: "🇷🇺" },
+    { id: "English", label: "Eng", flag: "🇬🇧" },
+  ];
+  return (
+    <div
+      role="radiogroup"
+      aria-label="Интерфейс тілі / Язык интерфейса"
+      className={`inline-flex items-center gap-0.5 rounded-full border border-line bg-card p-1 shadow-sm transition ${className}`}
+    >
+      {options.map((opt) => (
+        <button
+          key={opt.id}
+          type="button"
+          role="radio"
+          aria-checked={lang === opt.id}
+          onClick={() => setLang(opt.id)}
+          className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-mini font-bold transition ${
+            lang === opt.id
+              ? "bg-accent text-white shadow-glow"
+              : "text-copy-muted hover:text-white"
+          }`}
+          title={opt.id}
+        >
+          <span>{opt.flag}</span>
+          <span>{opt.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function ThemeToggle({
   className = "",
   compact = false,
@@ -287,12 +323,13 @@ export function ThemeToggle({
   compact?: boolean;
 }) {
   const { isDark, toggleTheme, setTheme } = useTheme();
+  const { t } = useI18n();
 
   if (compact) {
     return (
       <Button
-        aria-label={isDark ? "Переключить на светлую тему" : "Переключить на тёмную тему"}
-        title={isDark ? "Текущая: Тёмная. Кликните для светлой" : "Текущая: Светлая. Кликните для тёмной"}
+        aria-label={isDark ? t.themeLight : t.themeDark}
+        title={isDark ? t.themeLight : t.themeDark}
         className={`grid size-10 place-items-center rounded-full border border-line bg-card text-copy-muted transition hover:border-accent hover:text-accent-bright ${className}`}
         onClick={toggleTheme}
         type="button"
@@ -305,7 +342,7 @@ export function ThemeToggle({
   return (
     <div
       role="radiogroup"
-      aria-label="Тема оформления"
+      aria-label={t.theme}
       className={`inline-flex items-center gap-1 rounded-full border border-line bg-card p-1 shadow-sm transition ${className}`}
     >
       <button
@@ -320,7 +357,7 @@ export function ThemeToggle({
         }`}
       >
         <Icon name="sun" className="size-3.5" />
-        <span>Светлая</span>
+        <span>{t.themeLight}</span>
       </button>
       <button
         type="button"
@@ -334,9 +371,122 @@ export function ThemeToggle({
         }`}
       >
         <Icon name="moon" className="size-3.5" />
-        <span>Тёмная</span>
+        <span>{t.themeDark}</span>
       </button>
     </div>
+  );
+}
+
+function DesktopNavbar({
+  screen,
+  onNavigate,
+  onOpenAuth,
+  isGuest,
+  userName,
+  avatarGradient,
+  avatarUrl,
+  initials,
+  onOpenProfile,
+  onOpenSearch,
+}: {
+  screen: Screen;
+  onNavigate: (screen: Screen) => void;
+  onOpenAuth?: () => void;
+  isGuest?: boolean;
+  userName?: string;
+  avatarGradient?: string;
+  avatarUrl?: string;
+  initials?: string;
+  onOpenProfile?: () => void;
+  onOpenSearch?: () => void;
+}) {
+  const { t } = useI18n();
+  const navItems: { screen: Screen; label: string; icon: IconName }[] = [
+    { screen: "home", label: t.navHome, icon: "home" },
+    { screen: "record", label: t.navRecord, icon: "mic" },
+    { screen: "library", label: t.navLibrary, icon: "wave" },
+    { screen: "notes", label: t.navNotes, icon: "book" },
+    { screen: "tests", label: t.navTests, icon: "test" },
+    { screen: "teacher", label: t.navTeacher, icon: "brain" },
+  ];
+
+  return (
+    <header className="hidden md:flex sticky top-0 z-40 w-full items-center justify-between border-b border-line bg-nav/95 px-6 lg:px-8 py-3.5 backdrop-blur-xl transition">
+      <button
+        onClick={() => onNavigate("home")}
+        className="flex items-center gap-3 text-left transition hover:opacity-90"
+        type="button"
+      >
+        <div className="grid size-10 place-items-center rounded-xl bg-gradient-to-br from-accent to-purple text-white shadow-glow">
+          <Icon name="mic" className="size-5" />
+        </div>
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="text-base font-bold text-white tracking-tight">L-easy</span>
+            <span className="rounded-md border border-accent/40 bg-accent/15 px-1.5 py-0.5 text-[10px] font-bold text-accent-bright">
+              AI Notes
+            </span>
+          </div>
+          <p className="text-[11px] text-copy-muted">{t.appSubtitle}</p>
+        </div>
+      </button>
+
+      <nav className="flex items-center gap-1 rounded-2xl border border-line bg-card/90 p-1 shadow-sm">
+        {navItems.map((item) => (
+          <button
+            key={item.screen}
+            onClick={() => onNavigate(item.screen)}
+            type="button"
+            className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition ${
+              screen === item.screen
+                ? "bg-accent text-white shadow-glow"
+                : "text-copy-muted hover:text-white hover:bg-elevated/60"
+            }`}
+          >
+            <Icon name={item.icon} className="size-4" />
+            <span>{item.label}</span>
+          </button>
+        ))}
+      </nav>
+
+      <div className="flex items-center gap-2.5">
+        <LanguageToggle />
+        <ThemeToggle compact />
+        {onOpenSearch && (
+          <Button
+            aria-label="Search"
+            className="grid size-9 place-items-center rounded-full border border-line bg-card text-copy-muted transition hover:border-accent hover:text-accent-bright"
+            onClick={onOpenSearch}
+            type="button"
+          >
+            <Icon name="search" className="size-4" />
+          </Button>
+        )}
+        {isGuest && onOpenAuth && (
+          <Button
+            className="rounded-xl bg-accent px-3.5 py-2 text-xs font-bold text-white shadow-glow transition hover:opacity-90"
+            onClick={onOpenAuth}
+            type="button"
+          >
+            {t.signIn}
+          </Button>
+        )}
+        {onOpenProfile && (
+          <Button
+            aria-label="Open profile"
+            className={`relative grid size-9 place-items-center overflow-hidden rounded-full bg-gradient-to-br ${avatarGradient || "from-accent to-purple"} text-xs font-bold text-white ring-2 ring-card shadow-sm transition hover:scale-105`}
+            onClick={onOpenProfile}
+            type="button"
+          >
+            {avatarUrl ? (
+              <img alt={userName || "Avatar"} className="size-full object-cover" src={avatarUrl} />
+            ) : (
+              initials || "U"
+            )}
+          </Button>
+        )}
+      </div>
+    </header>
   );
 }
 
@@ -352,13 +502,14 @@ function TopBar({
   showThemeToggle?: boolean;
 }) {
   return (
-    <header className="flex items-start justify-between gap-4 pb-6 pt-safe">
+    <header className="flex items-start justify-between gap-4 pb-4 pt-safe">
       <div className="min-w-0 flex-1">
         {subtitle && <p className="mb-1 truncate text-xs font-medium text-copy-muted">{subtitle}</p>}
-        <Heading className="truncate text-2xl font-bold tracking-tight text-white">{title}</Heading>
+        <Heading className="truncate text-xl md:text-2xl font-bold tracking-tight text-white">{title}</Heading>
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        {showThemeToggle && <ThemeToggle compact />}
+        <LanguageToggle className="md:hidden" />
+        {showThemeToggle && <ThemeToggle compact className="md:hidden" />}
         {action}
       </div>
     </header>
@@ -377,25 +528,27 @@ function OverlayPanel({
   children: ReactNode;
 }) {
   return (
-    <div className="fixed inset-0 z-50 mx-auto flex max-w-md flex-col bg-app px-5">
-      <div className="shrink-0">
-        <TopBar
-          title={title}
-          subtitle={subtitle}
-          showThemeToggle={false}
-          action={
-            <Button
-              aria-label="Close"
-              className="grid size-10 place-items-center rounded-full border border-line bg-card text-copy-muted"
-              onClick={onClose}
-            >
-              <Icon name="arrow" className="size-4 rotate-180" />
-            </Button>
-          }
-        />
-      </div>
-      <div className="flex-1 overflow-y-auto pb-28">
-        {children}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-0 md:p-6">
+      <div className="relative flex h-full md:h-auto md:max-h-[90vh] w-full max-w-md md:max-w-3xl lg:max-w-4xl flex-col bg-app px-5 md:px-8 py-4 md:rounded-3xl md:border md:border-line md:shadow-2xl overflow-hidden">
+        <div className="shrink-0">
+          <TopBar
+            title={title}
+            subtitle={subtitle}
+            showThemeToggle={false}
+            action={
+              <Button
+                aria-label="Close"
+                className="grid size-10 place-items-center rounded-full border border-line bg-card text-copy-muted transition hover:border-accent hover:text-white"
+                onClick={onClose}
+              >
+                <Icon name="arrow" className="size-4 rotate-180" />
+              </Button>
+            }
+          />
+        </div>
+        <div className="flex-1 overflow-y-auto pb-24 md:pb-6">
+          {children}
+        </div>
       </div>
     </div>
   );
@@ -425,12 +578,22 @@ function BottomNav({
   screen: Screen;
   onNavigate: (screen: Screen) => void;
 }) {
+  const { t } = useI18n();
+  const navItems: { screen: Screen; label: string; icon: IconName }[] = [
+    { screen: "home", label: t.navHome, icon: "home" },
+    { screen: "record", label: t.navRecord, icon: "mic" },
+    { screen: "library", label: t.navLibrary, icon: "wave" },
+    { screen: "notes", label: t.navNotes, icon: "book" },
+    { screen: "tests", label: t.navTests, icon: "test" },
+    { screen: "teacher", label: t.navTeacher, icon: "brain" },
+  ];
+
   return (
     <nav
       aria-label="Main navigation"
-      className="fixed bottom-0 left-1/2 z-40 flex w-full max-w-md -translate-x-1/2 border-t border-line bg-nav/95 px-2 pb-safe backdrop-blur-xl"
+      className="md:hidden fixed bottom-0 left-0 right-0 z-40 flex w-full border-t border-line bg-nav/95 px-2 pb-safe backdrop-blur-xl"
     >
-      {nav.map((item) => (
+      {navItems.map((item) => (
         <Button
           className={`relative flex flex-1 flex-col items-center gap-1 py-3 text-mini font-semibold transition ${
             item.screen === screen ? "text-accent-bright" : "text-copy-dim"
@@ -442,7 +605,7 @@ function BottomNav({
             <span className="absolute top-0 h-0.5 w-8 rounded-full bg-accent-bright shadow-glow" />
           )}
           <Icon name={item.icon} className="size-5" />
-          {item.label}
+          <span className="truncate max-w-[56px] text-[10px]">{item.label}</span>
         </Button>
       ))}
     </nav>
@@ -589,6 +752,7 @@ function Home({
   onOpenAuth?: () => void;
 }) {
   const { isDark, setTheme } = useTheme();
+  const { t, lang } = useI18n();
   const [initProfile] = useState<CachedProfile>(() => getInitialProfile());
   const [initStats] = useState(() => getInitialStats(initProfile.userEmail));
 
@@ -908,61 +1072,89 @@ function Home({
   );
 
   return (
-    <div className="page-enter px-5">
+    <div className="page-enter px-4 sm:px-6 md:px-8 py-2 md:py-6">
       {isGuest && (
-        <div className="mb-3 flex items-center justify-between gap-2 rounded-2xl border border-green/30 bg-green/10 px-3.5 py-2.5 text-mini">
+        <div className="mb-4 flex items-center justify-between gap-2 rounded-2xl border border-green/30 bg-green/10 px-4 py-2.5 text-mini">
           <div className="flex items-center gap-2 font-semibold text-green">
             <span className="size-2 animate-pulse rounded-full bg-green" />
-            <span>Open Jury Demo (Без входа · 3 лекции готовы)</span>
+            <span>{t.juryDemo}</span>
           </div>
           {onOpenAuth && (
             <Button
-              className="shrink-0 rounded-lg bg-accent px-2.5 py-1 text-mini font-bold text-white shadow-glow"
+              className="shrink-0 rounded-lg bg-accent px-3 py-1 text-mini font-bold text-white shadow-glow"
               onClick={onOpenAuth}
             >
-              Войти
+              {t.signIn}
             </Button>
           )}
         </div>
       )}
-      <TopBar
-        subtitle={new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
-        title={userName ? `Hello, ${userName}!` : "Hello, Student!"}
-        showThemeToggle={false}
-        action={
-          <div className="flex items-center gap-2">
-            <ThemeToggle compact />
-            <Button
-              aria-label="Search"
-              className="grid size-10 place-items-center rounded-full border border-line bg-card text-copy-muted transition hover:border-accent hover:text-accent-bright"
-              onClick={() => setPanel("search")}
-            >
-              <Icon name="search" className="size-4" />
-            </Button>
-            <Button
-              aria-label="Open profile menu"
-              className={`relative grid size-10 place-items-center overflow-hidden rounded-full bg-gradient-to-br ${avatarGradient} text-xs font-bold text-white ring-2 ring-card`}
-              onClick={() => {
-                setProfileFeedback("");
-                setProfileError("");
-                refreshLibraryStats();
-                setPanel("profile");
-              }}
-            >
-              {avatarUrl ? (
-                <img alt={userName || "Avatar"} className="size-full object-cover" src={avatarUrl} />
-              ) : (
-                initials
-              )}
-            </Button>
-          </div>
-        }
-      />
 
-      <div className="mb-4 flex items-center justify-between rounded-2xl border border-line bg-card px-3.5 py-2 shadow-sm">
-        <span className="text-xs font-semibold text-copy-muted">Тема оформления:</span>
-        <ThemeToggle />
+      {/* Top Mobile Bar (phones only) */}
+      <div className="md:hidden">
+        <TopBar
+          subtitle={new Date().toLocaleDateString(lang === "Kazakh" ? "kk-KZ" : lang === "English" ? "en-US" : "ru-RU", { weekday: "long", month: "long", day: "numeric" })}
+          title={userName ? `${t.greeting}, ${userName}!` : `${t.greeting}, ${t.student}!`}
+          showThemeToggle={false}
+          action={
+            <div className="flex items-center gap-2">
+              <ThemeToggle compact />
+              <Button
+                aria-label="Search"
+                className="grid size-10 place-items-center rounded-full border border-line bg-card text-copy-muted transition hover:border-accent hover:text-accent-bright"
+                onClick={() => setPanel("search")}
+              >
+                <Icon name="search" className="size-4" />
+              </Button>
+              <Button
+                aria-label="Open profile menu"
+                className={`relative grid size-10 place-items-center overflow-hidden rounded-full bg-gradient-to-br ${avatarGradient} text-xs font-bold text-white ring-2 ring-card`}
+                onClick={() => {
+                  setProfileFeedback("");
+                  setProfileError("");
+                  refreshLibraryStats();
+                  setPanel("profile");
+                }}
+              >
+                {avatarUrl ? (
+                  <img alt={userName || "Avatar"} className="size-full object-cover" src={avatarUrl} />
+                ) : (
+                  initials
+                )}
+              </Button>
+            </div>
+          }
+        />
+
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-line bg-card px-3.5 py-2 shadow-sm">
+          <span className="text-xs font-semibold text-copy-muted">{t.uiLanguage}:</span>
+          <LanguageToggle />
+        </div>
       </div>
+
+      {/* Top Desktop Bar (PC / Laptops) */}
+      <div className="hidden md:flex items-center justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl lg:text-3xl font-extrabold text-white tracking-tight">
+            {userName ? `${t.greeting}, ${userName}!` : `${t.greeting}, ${t.student}!`}
+          </h1>
+          <p className="mt-1 text-xs text-copy-muted">
+            {new Date().toLocaleDateString(lang === "Kazakh" ? "kk-KZ" : lang === "English" ? "en-US" : "ru-RU", { weekday: "long", month: "long", day: "numeric" })} · {university}
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 rounded-2xl border border-line bg-card px-3.5 py-1.5 shadow-sm">
+            <span className="text-xs font-semibold text-copy-muted">{t.uiLanguage}:</span>
+            <LanguageToggle />
+          </div>
+          <ThemeToggle />
+        </div>
+      </div>
+
+      {/* Responsive Dashboard Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left Column (7 cols on desktop): Record CTA, Schedule, Telemetry */}
+        <div className="lg:col-span-7 space-y-6">
 
       <Button
         className="record-cta group relative w-full overflow-hidden rounded-card border border-accent/50 bg-gradient-to-br from-blue-deep to-accent p-6 text-left shadow-neon"
@@ -1044,115 +1236,140 @@ function Home({
         </div>
       </section>
 
-      <section className="mt-8">
-        <Heading level={2} className="mb-4 text-lg font-bold text-white">
-          Quick Actions
-        </Heading>
-        <div className="grid grid-cols-3 gap-3">
-          {[
-            ["book", "Моя", "Библиотека", libraryCount !== null ? String(libraryCount) : "0"],
-            ["test", "Тесты и", "Квизы", "AI"],
-            ["sparkles", "ИИ", "Тьютор", "Чат"],
-          ].map(([icon, first, second, badge], index) => (
-            <Button
-              className="rounded-2xl border border-line bg-card p-3 text-left transition hover:border-accent/50"
-              key={second}
-              onClick={() => {
-                if (index === 0) navigate("library");
-                else if (index === 1) openTests("quiz");
-                else navigate("teacher");
-              }}
-            >
-              <span className="mb-6 flex items-start justify-between">
-                <span className="grid size-9 place-items-center rounded-xl bg-accent-muted text-accent-bright">
-                  <Icon name={icon as IconName} className="size-4" />
-                </span>
-                <span className="rounded-full bg-elevated px-2 py-1 text-mini font-bold text-copy-muted">
-                  {badge}
-                </span>
+          <section className="rounded-card border border-accent/35 bg-card p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <Heading level={2} className="text-base sm:text-lg font-bold text-white">
+                Smart Sensor & Data Layer
+              </Heading>
+              <span className="rounded-full border border-green/30 bg-green/10 px-2.5 py-0.5 text-mini font-bold text-green">
+                Working Live · A3 + A4
               </span>
-              <span className="block text-xs font-semibold leading-5 text-white">
-                {first}
-                <br />
-                {second}
-              </span>
-            </Button>
-          ))}
-        </div>
-      </section>
-
-      <section className="mt-8">
-        <div className="mb-3 flex items-center justify-between">
-          <Heading level={2} className="text-lg font-bold text-white">
-            Smart Sensor & Data Layer
-          </Heading>
-          <span className="rounded-full border border-green/30 bg-green/10 px-2.5 py-0.5 text-mini font-bold text-green">
-            Working Live · A3 + A4
-          </span>
-        </div>
-        <div className="rounded-card border border-accent/35 bg-card p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <div className="text-xs font-bold uppercase tracking-wider text-accent-bright">
-                PostgreSQL (Supabase) + Smart Acoustic Telemetry
+            </div>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-xs font-bold uppercase tracking-wider text-accent-bright">
+                  PostgreSQL (Supabase) + Smart Acoustic Telemetry
+                </div>
+                <p className="mt-1 text-xs leading-5 text-copy-muted">
+                  Хранилище: <span className="font-semibold text-white">qcathxqziocmdjqflrsv.supabase.co</span> (RLS + 5 таблиц). Смарт-модуль измеряет шум аудитории (dB), отношение сигнал/шум (SNR) и темп речи (WPM), автоматически включая фильтр шумоподавления.
+                </p>
               </div>
-              <p className="mt-1 text-xs leading-5 text-copy-muted">
-                Хранилище: <span className="font-semibold text-white">qcathxqziocmdjqflrsv.supabase.co</span> (RLS + 5 таблиц). Смарт-модуль измеряет шум аудитории (dB), отношение сигнал/шум (SNR) и темп речи (WPM), автоматически включая фильтр шумоподавления.
-              </p>
             </div>
-          </div>
-          <div className="mt-3 grid grid-cols-3 gap-2">
-            <div className="rounded-xl bg-elevated p-2.5 text-center">
-              <div className="text-sm font-bold text-green">42.4 dB</div>
-              <div className="text-mini text-copy-muted">Шум (Сенсор)</div>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              <div className="rounded-xl bg-elevated p-2.5 text-center">
+                <div className="text-sm font-bold text-green">42.4 dB</div>
+                <div className="text-mini text-copy-muted">{t.noiseLevel}</div>
+              </div>
+              <div className="rounded-xl bg-elevated p-2.5 text-center">
+                <div className="text-sm font-bold text-accent-bright">+18.6 dB</div>
+                <div className="text-mini text-copy-muted">{t.snrClarity}</div>
+              </div>
+              <div className="rounded-xl bg-elevated p-2.5 text-center">
+                <div className="text-sm font-bold text-purple-light">94.2%</div>
+                <div className="text-mini text-copy-muted">ASR Accuracy</div>
+              </div>
             </div>
-            <div className="rounded-xl bg-elevated p-2.5 text-center">
-              <div className="text-sm font-bold text-accent-bright">+18.6 dB</div>
-              <div className="text-mini text-copy-muted">SNR чёткость</div>
-            </div>
-            <div className="rounded-xl bg-elevated p-2.5 text-center">
-              <div className="text-sm font-bold text-purple-light">94.2%</div>
-              <div className="text-mini text-copy-muted">Точность ASR</div>
-            </div>
-          </div>
-          <Button
-            className="mt-3 w-full rounded-xl border border-accent/40 bg-accent-muted py-2.5 text-xs font-bold text-accent-bright transition hover:border-accent"
-            onClick={() => setPanel("telemetry")}
-          >
-            📊 Открыть Data Layer, ERD и анализ телеметрии (Task 1 & 4)
-          </Button>
-        </div>
-      </section>
-
-      {recentRows.length > 0 && (
-        <section className="mt-8">
-          <div className="mb-3 flex items-center justify-between">
-            <Heading level={2} className="text-lg font-bold text-white">
-              Готовые лекции (1-Click сценарий)
-            </Heading>
-            <Button className="text-xs font-bold text-accent-bright" onClick={() => navigate("library")}>
-              Все ({recentRows.length})
+            <Button
+              className="mt-3.5 w-full rounded-xl border border-accent/40 bg-accent-muted py-2.5 text-xs font-bold text-accent-bright transition hover:border-accent"
+              onClick={() => setPanel("telemetry")}
+            >
+              📊 Открыть Data Layer, ERD и анализ телеметрии (Task 1 & 4)
             </Button>
-          </div>
-          <div className="space-y-2.5">
-            {recentRows.slice(0, 3).map((row) => (
-              <Button
-                className="flex w-full items-center justify-between rounded-2xl border border-line bg-card p-3.5 text-left transition hover:border-accent/50"
-                key={row.id}
-                onClick={() => void onOpenRecording(row)}
-              >
-                <span className="min-w-0 flex-1 pr-3">
-                  <span className="block truncate text-sm font-bold text-white">{row.title ?? "Лекция"}</span>
-                  <span className="mt-1 block text-xs text-copy-muted">
-                    Нажмите, чтобы открыть ИИ-конспект, словарь, тест и AI Teacher
+          </section>
+        </div>
+
+        {/* Right Column (5 cols on desktop): Stats, Quick Actions, Recent Lectures */}
+        <div className="lg:col-span-5 space-y-6">
+          <section className="rounded-card border border-line bg-card p-5">
+            <Heading level={2} className="mb-4 text-base sm:text-lg font-bold text-white">
+              {t.studyStats}
+            </Heading>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-2xl border border-line bg-elevated/40 p-4">
+                <div className="text-2xl sm:text-3xl font-extrabold text-white">{libraryCount !== null ? libraryCount : "0"}</div>
+                <div className="mt-1 text-xs text-copy-muted">{t.statLectures}</div>
+              </div>
+              <div className="rounded-2xl border border-line bg-elevated/40 p-4">
+                <div className="text-2xl sm:text-3xl font-extrabold text-accent-bright">{summariesCount}</div>
+                <div className="mt-1 text-xs text-copy-muted">{t.statSummaries}</div>
+              </div>
+              <div className="rounded-2xl border border-line bg-elevated/40 p-4">
+                <div className="text-2xl sm:text-3xl font-extrabold text-purple-light">{quizzesCount}</div>
+                <div className="mt-1 text-xs text-copy-muted">{t.statQuizzes}</div>
+              </div>
+              <div className="rounded-2xl border border-line bg-elevated/40 p-4">
+                <div className="text-2xl sm:text-3xl font-extrabold text-green">{totalMinutes}</div>
+                <div className="mt-1 text-xs text-copy-muted">{t.statMinutes}</div>
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-card border border-line bg-card p-5">
+            <Heading level={2} className="mb-4 text-base sm:text-lg font-bold text-white">
+              {t.quickPractice}
+            </Heading>
+            <div className="grid grid-cols-3 gap-2.5">
+              {[
+                ["book", t.navLibrary, "library", libraryCount !== null ? String(libraryCount) : "0"],
+                ["test", t.navTests, "tests", "AI"],
+                ["brain", t.navTeacher, "teacher", "24/7"],
+              ].map(([icon, label, targetScreen, badge]) => (
+                <Button
+                  className="rounded-2xl border border-line bg-elevated/40 p-3 text-left transition hover:border-accent hover:bg-elevated"
+                  key={targetScreen}
+                  onClick={() => {
+                    if (targetScreen === "library") navigate("library");
+                    else if (targetScreen === "tests") openTests("quiz");
+                    else navigate("teacher");
+                  }}
+                >
+                  <div className="mb-3 flex items-start justify-between">
+                    <span className="grid size-8 place-items-center rounded-xl bg-accent-muted text-accent-bright">
+                      <Icon name={icon as IconName} className="size-4" />
+                    </span>
+                    <span className="rounded-full bg-card px-1.5 py-0.5 text-[10px] font-bold text-copy-muted">
+                      {badge}
+                    </span>
+                  </div>
+                  <span className="block text-xs font-bold text-white truncate">
+                    {label}
                   </span>
-                </span>
-                <Icon name="arrow" className="size-4 shrink-0 text-accent-bright" />
-              </Button>
-            ))}
-          </div>
-        </section>
-      )}
+                </Button>
+              ))}
+            </div>
+          </section>
+
+          {recentRows.length > 0 && (
+            <section className="rounded-card border border-line bg-card p-5">
+              <div className="mb-3 flex items-center justify-between">
+                <Heading level={2} className="text-base sm:text-lg font-bold text-white">
+                  {t.recentRecordings}
+                </Heading>
+                <Button className="text-xs font-bold text-accent-bright transition hover:underline" onClick={() => navigate("library")}>
+                  {t.allRecordings} ({recentRows.length})
+                </Button>
+              </div>
+              <div className="space-y-2.5">
+                {recentRows.slice(0, 4).map((row) => (
+                  <Button
+                    className="flex w-full items-center justify-between rounded-2xl border border-line bg-elevated/40 p-3.5 text-left transition hover:border-accent"
+                    key={row.id}
+                    onClick={() => void onOpenRecording(row)}
+                  >
+                    <div className="min-w-0 flex-1 pr-3">
+                      <div className="truncate text-sm font-bold text-white">{row.title ?? t.navRecord}</div>
+                      <div className="mt-0.5 text-xs text-copy-muted">
+                        {row.created_at ? new Date(row.created_at).toLocaleDateString() : t.today}
+                      </div>
+                    </div>
+                    <Icon name="arrow" className="size-4 shrink-0 text-accent-bright" />
+                  </Button>
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
+      </div>
 
       {panel === "telemetry" && (
         <OverlayPanel
@@ -2291,7 +2508,7 @@ function Recording({
   };
 
   return (
-    <div className="page-enter px-5">
+    <div className="page-enter px-4 sm:px-6 md:px-8 py-2 md:py-4 max-w-4xl mx-auto">
       <TopBar
         subtitle="Recording Lecture"
         title="English · CS101"
@@ -2719,7 +2936,7 @@ function LectureInformation({
   };
 
   return (
-    <div className="page-enter px-5">
+    <div className="page-enter px-4 sm:px-6 md:px-8 py-2 md:py-4 max-w-4xl mx-auto">
       <TopBar subtitle={draft.sourceType === "upload" ? draft.sourceFile : "Recorded lecture"} title="Lecture Information" />
       <BackButton label="Back to Record" onClick={onBack} />
       <section className="rounded-card border border-line bg-card p-5">
@@ -2913,7 +3130,7 @@ function Processing({
   const progress = Math.min(100, Math.round((stage / processingStages.length) * 100));
 
   return (
-    <div className="page-enter px-5">
+    <div className="page-enter px-4 sm:px-6 md:px-8 py-2 md:py-4 max-w-4xl mx-auto">
       <TopBar subtitle={lecture.subject} title={ready ? "Lecture Ready" : "Processing Lecture"} />
       <BackButton label={ready ? "Back to Lecture Information" : "Cancel Processing"} onClick={onBack} />
       <section className="rounded-card border border-line bg-card p-5">
@@ -3291,6 +3508,7 @@ function LectureSummary({
   openTests: (mode: "quiz" | "cards") => void;
   onLectureUpdate: (patch: Partial<Lecture>) => void;
 }) {
+  const { t, lang } = useI18n();
   const [version, setVersion] = useState<"original" | "simplified">("original");
   const [language, setLanguage] = useState<Language>(lecture.outputLanguage);
   const [editing, setEditing] = useState(false);
@@ -3392,11 +3610,11 @@ function LectureSummary({
 
   if (loading) {
     return (
-      <div className="summary-page page-enter px-5 text-center py-20">
-        <TopBar subtitle={`${lecture.subject} · ${lecture.date}`} title="Lecture Summary" />
-        <BackButton label="Back to Processing" onClick={onBack} />
+      <div className="summary-page page-enter px-4 md:px-8 text-center py-20 max-w-2xl mx-auto">
+        <TopBar subtitle={`${lecture.subject} · ${lecture.date}`} title={t.summaryTitle} />
+        <BackButton label={t.back} onClick={onBack} />
         <div className="mt-10 text-white animate-pulse">
-          <p className="text-lg">🤖 Искусственный интеллект (Gemini) анализирует лекцию...</p>
+          <p className="text-lg">🤖 {t.stepSummarize}...</p>
         </div>
       </div>
     );
@@ -3404,9 +3622,9 @@ function LectureSummary({
 
   if (error) {
     return (
-      <div className="summary-page page-enter px-5 text-center py-20">
-        <TopBar subtitle={`${lecture.subject} · ${lecture.date}`} title="Lecture Summary" />
-        <BackButton label="Back to Processing" onClick={onBack} />
+      <div className="summary-page page-enter px-4 md:px-8 text-center py-20 max-w-2xl mx-auto">
+        <TopBar subtitle={`${lecture.subject} · ${lecture.date}`} title={t.summaryTitle} />
+        <BackButton label={t.back} onClick={onBack} />
         <div className="mt-10 text-red-400">
           <p className="text-lg">❌ Ошибка: {error}</p>
           <button onClick={() => setAttempt((value) => value + 1)} className="mt-4 px-4 py-2 bg-blue-600 rounded text-white">
@@ -3420,144 +3638,166 @@ function LectureSummary({
   const currentText = version === "original" ? summaryData?.explanation : summaryData?.simplified;
 
   return (
-    <div className="summary-page page-enter px-5">
-      <TopBar subtitle={`${lecture.subject} · ${lecture.date}`} title="Lecture Summary" />
-      <BackButton label="Back to Processing" onClick={onBack} />
+    <div className="summary-page page-enter px-4 sm:px-6 md:px-8 py-2 md:py-4">
+      <TopBar subtitle={`${lecture.subject} · ${lecture.date}`} title={t.summaryTitle} />
+      <div className="mb-4">
+        <BackButton label={t.back} onClick={onBack} />
+      </div>
 
-      <section className="rounded-card border border-line bg-card p-5">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <Heading level={2} className="text-xl font-bold text-white">{lecture.title}</Heading>
-            <p className="mt-1 text-xs text-copy-muted">{lecture.professor}</p>
-          </div>
-        </div>
+      <div className="lg:grid lg:grid-cols-12 lg:gap-6 items-start">
+        {/* Left Column: AI Explanation & Actions (7 cols on desktop) */}
+        <div className="lg:col-span-7 space-y-5">
+          <section className="rounded-card border border-line bg-card p-5 shadow-sm">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <Heading level={2} className="text-xl font-bold text-white tracking-tight">{lecture.title}</Heading>
+                <p className="mt-1 text-xs text-copy-muted">{lecture.professor} · {lecture.date}</p>
+              </div>
+              <span className="rounded-full border border-accent/30 bg-accent/15 px-3 py-1 text-mini font-bold text-accent-bright">
+                {lecture.outputLanguage}
+              </span>
+            </div>
 
-        <div className="mt-5 flex rounded-full bg-elevated p-1">
-          <button
-            onClick={() => setVersion("original")}
-            className={`flex-1 rounded-full py-2 text-xs font-medium transition ${
-              version === "original" ? "bg-card text-white shadow" : "text-copy-muted"
-            }`}
-          >
-            Original
-          </button>
-          <button
-            onClick={() => setVersion("simplified")}
-            className={`flex-1 rounded-full py-2 text-xs font-medium transition ${
-              version === "simplified" ? "bg-card text-white shadow" : "text-copy-muted"
-            }`}
-          >
-            Simplified
-          </button>
-        </div>
+            <div className="mt-5 flex rounded-full bg-elevated p-1">
+              <button
+                onClick={() => setVersion("original")}
+                className={`flex-1 rounded-full py-2 text-xs font-semibold transition ${
+                  version === "original" ? "bg-card text-white shadow" : "text-copy-muted hover:text-white"
+                }`}
+              >
+                {t.tabStructured}
+              </button>
+              <button
+                onClick={() => setVersion("simplified")}
+                className={`flex-1 rounded-full py-2 text-xs font-semibold transition ${
+                  version === "simplified" ? "bg-card text-white shadow" : "text-copy-muted hover:text-white"
+                }`}
+              >
+                {t.tabSimplified}
+              </button>
+            </div>
 
-        <div className="mt-5">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-white">AI Explanation</h3>
-            <button onClick={() => setEditing(!editing)} className="text-xs text-brand hover:underline">
-              {editing ? "Done" : "Edit"}
-            </button>
-          </div>
+            <div className="mt-5">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-white">
+                  {version === "original" ? t.tabStructured : t.tabSimplified}
+                </h3>
+                <button onClick={() => setEditing(!editing)} className="text-xs text-brand font-semibold hover:underline">
+                  {editing ? t.save : t.edit}
+                </button>
+              </div>
 
-          {editing ? (
-            <textarea
-              className="mt-2 w-full rounded-card border border-line bg-elevated p-3 text-sm text-white"
-              rows={4}
-              value={currentText}
-              onChange={(e) => {
-                if (!summaryData) return;
-                if (version === "original") {
-                  setSummaryData({ ...summaryData, explanation: e.target.value });
-                } else {
-                  setSummaryData({ ...summaryData, simplified: e.target.value });
-                }
-              }}
-            />
-          ) : (
-            <p className="mt-2 text-sm leading-relaxed text-copy">{currentText}</p>
-          )}
+              {editing ? (
+                <textarea
+                  className="mt-2 w-full rounded-card border border-line bg-elevated p-3 text-sm text-white focus:outline-none focus:border-accent"
+                  rows={6}
+                  value={currentText}
+                  onChange={(e) => {
+                    if (!summaryData) return;
+                    if (version === "original") {
+                      setSummaryData({ ...summaryData, explanation: e.target.value });
+                    } else {
+                      setSummaryData({ ...summaryData, simplified: e.target.value });
+                    }
+                  }}
+                />
+              ) : (
+                <p className="mt-2 text-sm leading-relaxed text-copy whitespace-pre-line">{currentText}</p>
+              )}
 
-          <div className="mt-4 flex items-center gap-2">
-            <button
-              onClick={() => {
-                if (summaryData) {
-                  onLectureUpdate({ summary: summaryData, summaryLanguage: language });
-                  if (lecture.recordingId) {
-                    void updateRecording(lecture.recordingId, {
-                      summary: JSON.stringify({ language, data: summaryData }),
-                    });
-                  }
-                }
-                setEditing(false);
-                setSaved(true);
-                window.setTimeout(() => setSaved(false), 2500);
-              }}
-              className="rounded-button bg-accent px-4 py-2 text-xs font-bold text-white shadow-glow"
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => {
+                    if (summaryData) {
+                      onLectureUpdate({ summary: summaryData, summaryLanguage: language });
+                      if (lecture.recordingId) {
+                        void updateRecording(lecture.recordingId, {
+                          summary: JSON.stringify({ language, data: summaryData }),
+                        });
+                      }
+                    }
+                    setEditing(false);
+                    setSaved(true);
+                    window.setTimeout(() => setSaved(false), 2500);
+                  }}
+                  className="rounded-button bg-accent px-4 py-2 text-xs font-bold text-white shadow-glow"
+                >
+                  {saved ? (lang === "Kazakh" ? "Бұлтта сақталды ✓" : lang === "English" ? "Saved to Cloud ✓" : "Сохранено в облаке ✓") : t.save}
+                </button>
+                <button
+                  onClick={download}
+                  className="rounded-button border border-line bg-elevated px-4 py-2 text-xs font-semibold text-copy-muted hover:text-white"
+                >
+                  {t.exportPdf}
+                </button>
+              </div>
+              {downloadStatus && <p className="mt-2 text-mini text-accent-bright">{downloadStatus}</p>}
+            </div>
+          </section>
+
+          {/* Quick actions by lecture */}
+          <section className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4 gap-3">
+            <Button
+              className="rounded-xl bg-accent py-3.5 px-3 text-xs font-bold text-white shadow-glow"
+              onClick={() => navigate("notes")}
             >
-              {saved ? "Сохранено в облаке ✓" : "Сохранить изменения"}
-            </button>
-            <button
-              onClick={download}
-              className="rounded-button border border-line bg-elevated px-4 py-2 text-xs font-semibold text-copy-muted hover:text-white"
+              {t.navNotes}
+            </Button>
+            <Button
+              className="rounded-xl bg-purple py-3.5 px-3 text-xs font-bold text-white"
+              onClick={() => navigate("teacher")}
             >
-              Скачать PDF
-            </button>
-          </div>
-          {downloadStatus && <p className="mt-2 text-mini text-accent-bright">{downloadStatus}</p>}
+              {t.askTeacher}
+            </Button>
+            <Button
+              className="rounded-xl border border-line bg-card py-3.5 px-3 text-xs font-bold text-white hover:border-accent"
+              onClick={() => openTests("quiz")}
+            >
+              {t.takeQuiz}
+            </Button>
+            <Button
+              className="rounded-xl border border-line bg-card py-3.5 px-3 text-xs font-bold text-white hover:border-accent"
+              onClick={() => openTests("cards")}
+            >
+              {t.openFlashcards}
+            </Button>
+          </section>
         </div>
-      </section>
 
-      {/* Ключевые точки от Gemini */}
-      <section className="mt-5 rounded-card border border-line bg-card p-5">
-        <h3 className="text-sm font-semibold text-white">Key Points</h3>
-        <ul className="mt-3 space-y-2">
-          {summaryData?.keyPoints?.map((point, index) => (
-            <li key={index} className="text-xs text-copy flex items-start gap-2">
-              <span className="text-brand">•</span> {point}
-            </li>
-          ))}
-        </ul>
-      </section>
+        {/* Right Column: Key Points & Glossary (5 cols on desktop) */}
+        <div className="lg:col-span-5 space-y-5 mt-5 lg:mt-0">
+          {/* Key points */}
+          <section className="rounded-card border border-line bg-card p-5 shadow-sm">
+            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+              <span className="size-2 rounded-full bg-accent-bright" />
+              {t.tabKeyPoints}
+            </h3>
+            <ul className="mt-3 space-y-2.5">
+              {summaryData?.keyPoints?.map((point, index) => (
+                <li key={index} className="text-xs text-copy flex items-start gap-2.5 leading-relaxed">
+                  <span className="text-brand font-bold">•</span>
+                  <span>{point}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
 
-      {/* Термины */}
-      <section className="mt-5 rounded-card border border-line bg-card p-5">
-        <h3 className="text-sm font-semibold text-white">Key Terms</h3>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {summaryData?.terms?.map((term, index) => (
-            <span key={index} className="rounded-full bg-elevated px-3 py-1 text-xs text-white">
-              {term}
-            </span>
-          ))}
+          {/* Academic Glossary */}
+          <section className="rounded-card border border-line bg-card p-5 shadow-sm">
+            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+              <span className="size-2 rounded-full bg-purple" />
+              {t.tabGlossary}
+            </h3>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {summaryData?.terms?.map((term, index) => (
+                <span key={index} className="rounded-full border border-line bg-elevated px-3 py-1 text-xs text-copy font-medium">
+                  {term}
+                </span>
+              ))}
+            </div>
+          </section>
         </div>
-      </section>
-
-      {/* Быстрые действия по лекции */}
-      <section className="mt-5 grid grid-cols-2 gap-3">
-        <Button
-          className="rounded-xl bg-accent py-3.5 text-xs font-bold text-white shadow-glow"
-          onClick={() => navigate("notes")}
-        >
-          Конспект и словарь (Notes)
-        </Button>
-        <Button
-          className="rounded-xl bg-purple py-3.5 text-xs font-bold text-white"
-          onClick={() => navigate("teacher")}
-        >
-          Спросить AI Teacher
-        </Button>
-        <Button
-          className="rounded-xl border border-line bg-card py-3.5 text-xs font-bold text-white"
-          onClick={() => openTests("quiz")}
-        >
-          Пройти тест (Quiz)
-        </Button>
-        <Button
-          className="rounded-xl border border-line bg-card py-3.5 text-xs font-bold text-white"
-          onClick={() => openTests("cards")}
-        >
-          Флеш-карточки
-        </Button>
-      </section>
+      </div>
     </div>
   );
 }
@@ -3598,6 +3838,7 @@ function Notes({
   openTests: (mode: "quiz" | "cards") => void;
   onBack: () => void;
 }) {
+  const { t, lang } = useI18n();
   const { termsList, definitions } = parseVocabulary(lecture.summary?.terms);
   const [selectedTerm, setSelectedTerm] = useState(termsList[0] ?? "Главная идея");
   const [actionStatus, setActionStatus] = useState("");
@@ -3611,10 +3852,10 @@ function Notes({
 
   const downloadNotes = () => {
     setDownloading(true);
-    setActionStatus("Готовим заметки к печати/PDF…");
+    setActionStatus(lang === "Kazakh" ? "PDF дайындалуда…" : lang === "English" ? "Preparing PDF…" : "Готовим заметки к печати/PDF…");
     window.setTimeout(() => {
       setDownloading(false);
-      setActionStatus("PDF готов. Выберите «Сохранить как PDF» в окне печати.");
+      setActionStatus(lang === "Kazakh" ? "PDF дайын." : lang === "English" ? "PDF is ready." : "PDF готов. Выберите «Сохранить как PDF» в окне печати.");
       window.print();
     }, 500);
   };
@@ -3627,18 +3868,18 @@ function Notes({
     };
 
     if (navigator.share) {
-      setActionStatus("Открываем меню отправки…");
+      setActionStatus(lang === "Kazakh" ? "Бөлісу терезесі ашылуда…" : "Открываем меню отправки…");
       await navigator.share(shareData)
-        .then(() => setActionStatus("Заметки успешно отправлены."))
-        .catch(() => setActionStatus("Отправка отменена."));
+        .then(() => setActionStatus(lang === "Kazakh" ? "Жіберілді." : "Заметки успешно отправлены."))
+        .catch(() => setActionStatus(lang === "Kazakh" ? "Бас тартылды." : "Отправка отменена."));
       return;
     }
 
     try {
       await navigator.clipboard.writeText(`${shareData.title}\n${shareData.text}`);
-      setActionStatus("Текст конспекта скопирован в буфер обмена.");
+      setActionStatus(lang === "Kazakh" ? "Алмасу буферіне көшірілді." : "Текст конспекта скопирован в буфер обмена.");
     } catch {
-      setActionStatus("Отправка недоступна в этом браузере.");
+      setActionStatus(lang === "Kazakh" ? "Бұл браузерде қолжетімсіз." : "Отправка недоступна в этом браузере.");
     }
   };
 
@@ -3649,131 +3890,145 @@ function Notes({
       : ["Ключевые пункты конспекта появятся здесь после генерации в разделе Summary."];
 
   return (
-    <div className="notes-page page-enter px-5">
+    <div className="notes-page page-enter px-4 sm:px-6 md:px-8 py-2 md:py-4">
       <TopBar
         subtitle={`${lecture.subject} · ${lecture.date}`}
         title={lecture.title}
         action={
           <Button
             aria-label="Назад к конспекту лекции"
-            className="grid size-10 place-items-center rounded-full border border-line bg-card text-copy-muted"
+            className="grid size-10 place-items-center rounded-full border border-line bg-card text-copy-muted transition hover:text-white"
             onClick={onBack}
           >
             <Icon name="arrow" className="size-4 rotate-180" />
           </Button>
         }
       />
-      <div className="flex gap-3">
+
+      <div className="flex gap-3 mb-5">
         <Button
           className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-accent to-purple px-4 py-3.5 text-sm font-bold text-white shadow-glow"
           disabled={downloading}
           onClick={downloadNotes}
         >
           <Icon name="download" className="size-4" />
-          {downloading ? "Подготовка PDF…" : "Скачать конспект в PDF"}
+          {downloading ? (lang === "Kazakh" ? "Дайындалуда…" : "Подготовка PDF…") : t.exportPdf}
         </Button>
         <Button
           aria-label="Поделиться заметками"
-          className="grid size-12 place-items-center rounded-xl border border-line bg-card text-copy-muted"
+          className="grid size-12 place-items-center rounded-xl border border-line bg-card text-copy-muted transition hover:text-white hover:border-accent"
           onClick={shareNotes}
         >
           <Icon name="share" className="size-4" />
         </Button>
       </div>
+
       {actionStatus && (
-        <div className="mt-3 rounded-xl border border-accent/25 bg-accent-muted p-3 text-xs font-semibold text-accent-bright">
+        <div className="mb-5 rounded-xl border border-accent/25 bg-accent-muted p-3 text-xs font-semibold text-accent-bright">
           {actionStatus}
         </div>
       )}
 
-      <section className="mt-6 rounded-card border border-line bg-card p-5">
-        <div className="mb-4 flex items-center gap-3">
-          <div className="grid size-9 place-items-center rounded-xl bg-accent-muted text-accent-bright">
-            <Icon name="sparkles" className="size-4" />
-          </div>
-          <Heading level={2} className="text-base font-bold text-white">
-            Ключевые тезисы лекции
-          </Heading>
-        </div>
-        <ul className="space-y-3 text-sm leading-6 text-copy-muted">
-          {keyPoints.map((item, idx) => (
-            <li className="flex gap-3" key={idx}>
-              <span className="mt-2 size-1.5 shrink-0 rounded-full bg-accent-bright" />
-              <span>{item}</span>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section className="mt-4 rounded-card border border-line bg-card p-5">
-        <Heading level={2} className="text-base font-bold text-white">
-          Разбор и практические примеры
-        </Heading>
-        <div className="mt-4 space-y-3">
-          <div className="rounded-xl bg-elevated p-4">
-            <div className="text-xs font-semibold text-accent-bright uppercase tracking-wider">Суть простыми словами</div>
-            <div className="mt-2 text-sm leading-6 text-white">
-              {lecture.summary?.simplified || "Понятное объяснение простыми словами появится здесь."}
-            </div>
-          </div>
-          {lecture.summary?.example && (
-            <div className="rounded-xl bg-elevated p-4">
-              <div className="text-xs font-semibold text-purple-light uppercase tracking-wider">Практический пример</div>
-              <div className="mt-2 text-sm leading-6 text-white">
-                {lecture.summary.example}
+      {/* Desktop 2-column layout */}
+      <div className="lg:grid lg:grid-cols-12 lg:gap-6 items-start">
+        {/* Left column: Key Points & Practical Breakdown (7 cols) */}
+        <div className="lg:col-span-7 space-y-5">
+          <section className="rounded-card border border-line bg-card p-5 shadow-sm">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="grid size-9 place-items-center rounded-xl bg-accent-muted text-accent-bright">
+                <Icon name="sparkles" className="size-4" />
               </div>
+              <Heading level={2} className="text-base font-bold text-white">
+                {t.tabKeyPoints}
+              </Heading>
             </div>
-          )}
-        </div>
-      </section>
+            <ul className="space-y-3 text-sm leading-6 text-copy-muted">
+              {keyPoints.map((item, idx) => (
+                <li className="flex gap-3" key={idx}>
+                  <span className="mt-2 size-1.5 shrink-0 rounded-full bg-accent-bright" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
 
-      <section className="mt-4 rounded-card border border-line bg-card p-5">
-        <Heading level={2} className="text-base font-bold text-white">
-          Словарь терминов
-        </Heading>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {termsList.map((term) => (
-            <Button
-              className={`rounded-full border px-3 py-2 text-xs font-semibold ${
-                term === selectedTerm
-                  ? "border-accent bg-accent-muted text-accent-bright"
-                  : "border-line bg-elevated text-copy-muted"
-              }`}
-              key={term}
-              onClick={() => setSelectedTerm(term)}
-            >
-              {term}
-            </Button>
-          ))}
+          <section className="rounded-card border border-line bg-card p-5 shadow-sm">
+            <Heading level={2} className="text-base font-bold text-white">
+              {lang === "Kazakh" ? "Талдау және мысалдар" : lang === "English" ? "Explanation & Examples" : "Разбор и практические примеры"}
+            </Heading>
+            <div className="mt-4 space-y-3">
+              <div className="rounded-xl bg-elevated p-4">
+                <div className="text-xs font-semibold text-accent-bright uppercase tracking-wider">{t.tabSimplified}</div>
+                <div className="mt-2 text-sm leading-6 text-white whitespace-pre-line">
+                  {lecture.summary?.simplified || "Понятное объяснение простыми словами появится здесь."}
+                </div>
+              </div>
+              {lecture.summary?.example && (
+                <div className="rounded-xl bg-elevated p-4">
+                  <div className="text-xs font-semibold text-purple-light uppercase tracking-wider">{t.tabExample}</div>
+                  <div className="mt-2 text-sm leading-6 text-white whitespace-pre-line">
+                    {lecture.summary.example}
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
         </div>
-        <div className="mt-4 rounded-xl border-l-2 border-purple bg-purple/10 p-4">
-          <div className="text-xs font-bold text-purple-light">{selectedTerm}</div>
-          <p className="mt-1 text-xs leading-5 text-copy-muted">
-            {definitions[selectedTerm] || "Определение термина."}
-          </p>
-        </div>
-      </section>
 
-      <section className="mt-4 overflow-hidden rounded-card border border-purple/40 bg-gradient-to-br from-purple/20 to-accent-muted p-5">
-        <div className="text-xs font-bold uppercase tracking-widest text-purple-light">Закрепление материала</div>
-        <Heading level={2} className="mt-2 text-lg font-bold text-white">
-          Проверьте свои знания
-        </Heading>
-        <div className="mt-5 grid grid-cols-2 gap-3">
-          <Button
-            className="rounded-xl bg-white px-3 py-3 text-xs font-bold text-ink"
-            onClick={() => openTests("quiz")}
-          >
-            Тест (Quiz) <span className="block text-mini font-medium text-copy-dim">{lecture.study?.quiz?.length || 8} вопросов</span>
-          </Button>
-          <Button
-            className="rounded-xl border border-white/15 bg-white/10 px-3 py-3 text-xs font-bold text-white"
-            onClick={() => openTests("cards")}
-          >
-            Флеш-карточки <span className="block text-mini font-medium text-copy-muted">{lecture.study?.flashcards?.length || 8} терминов</span>
-          </Button>
+        {/* Right column: Glossary & Practice Quizzes (5 cols) */}
+        <div className="lg:col-span-5 space-y-5 mt-5 lg:mt-0">
+          <section className="rounded-card border border-line bg-card p-5 shadow-sm">
+            <Heading level={2} className="text-base font-bold text-white flex items-center gap-2">
+              <span className="size-2 rounded-full bg-purple" />
+              {t.tabGlossary}
+            </Heading>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {termsList.map((term) => (
+                <Button
+                  className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                    term === selectedTerm
+                      ? "border-accent bg-accent-muted text-accent-bright shadow-glow"
+                      : "border-line bg-elevated text-copy-muted hover:text-white"
+                  }`}
+                  key={term}
+                  onClick={() => setSelectedTerm(term)}
+                >
+                  {term}
+                </Button>
+              ))}
+            </div>
+            <div className="mt-4 rounded-xl border-l-2 border-purple bg-purple/10 p-4">
+              <div className="text-xs font-bold text-purple-light">{selectedTerm}</div>
+              <p className="mt-1 text-xs leading-5 text-copy-muted">
+                {definitions[selectedTerm] || "Определение термина."}
+              </p>
+            </div>
+          </section>
+
+          <section className="overflow-hidden rounded-card border border-purple/40 bg-gradient-to-br from-purple/20 to-accent-muted p-5 shadow-sm">
+            <div className="text-xs font-bold uppercase tracking-widest text-purple-light">
+              {lang === "Kazakh" ? "Материалды бекіту" : lang === "English" ? "Knowledge Check" : "Закрепление материала"}
+            </div>
+            <Heading level={2} className="mt-2 text-lg font-bold text-white">
+              {lang === "Kazakh" ? "Біліміңізді тексеріңіз" : lang === "English" ? "Self-Check Practice" : "Проверьте свои знания"}
+            </Heading>
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <Button
+                className="rounded-xl bg-white px-3 py-3 text-xs font-bold text-ink shadow-sm hover:opacity-90"
+                onClick={() => openTests("quiz")}
+              >
+                {t.takeQuiz} <span className="block text-mini font-medium text-copy-dim">{lecture.study?.quiz?.length || 8} {t.items}</span>
+              </Button>
+              <Button
+                className="rounded-xl border border-white/15 bg-white/10 px-3 py-3 text-xs font-bold text-white hover:bg-white/20"
+                onClick={() => openTests("cards")}
+              >
+                {t.openFlashcards} <span className="block text-mini font-medium text-copy-muted">{lecture.study?.flashcards?.length || 8} {t.items}</span>
+              </Button>
+            </div>
+          </section>
         </div>
-      </section>
+      </div>
     </div>
   );
 }
@@ -3789,6 +4044,7 @@ function Tests({
   onBack: () => void;
   onLectureUpdate: (patch: Partial<Lecture>) => void;
 }) {
+  const { t, lang } = useI18n();
   const [study, setStudy] = useState<StudyData | null>(
     lecture.study && lecture.studyLanguage === lecture.outputLanguage ? lecture.study : null,
   );
@@ -3957,14 +4213,14 @@ function Tests({
   };
 
   return (
-    <div className="page-enter px-5">
+    <div className="page-enter px-4 sm:px-6 md:px-8 py-2 md:py-4 max-w-4xl mx-auto">
       <TopBar
         subtitle={`${lecture.title} · Learn, recall, repeat`}
-        title="Practice & Self-Check"
+        title={t.testsTitle}
         action={
           <Button
             aria-label="Back to lecture summary"
-            className="grid size-10 place-items-center rounded-full border border-line bg-card text-copy-muted"
+            className="grid size-10 place-items-center rounded-full border border-line bg-card text-copy-muted transition hover:text-white"
             onClick={onBack}
           >
             <Icon name="arrow" className="size-4 rotate-180" />
@@ -3973,20 +4229,20 @@ function Tests({
       />
       <div className="grid grid-cols-2 rounded-xl bg-card p-1">
         <Button
-          className={`rounded-lg py-3 text-xs font-bold ${
-            tab === "quiz" ? "bg-accent text-white shadow-glow" : "text-copy-muted"
+          className={`rounded-lg py-3 text-xs font-bold transition ${
+            tab === "quiz" ? "bg-accent text-white shadow-glow" : "text-copy-muted hover:text-white"
           }`}
           onClick={() => changeTab("quiz")}
         >
-          Practice Quizzes
+          {t.quizMode}
         </Button>
         <Button
-          className={`rounded-lg py-3 text-xs font-bold ${
-            tab === "cards" ? "bg-accent text-white shadow-glow" : "text-copy-muted"
+          className={`rounded-lg py-3 text-xs font-bold transition ${
+            tab === "cards" ? "bg-accent text-white shadow-glow" : "text-copy-muted hover:text-white"
           }`}
           onClick={() => changeTab("cards")}
         >
-          Flashcards Deck
+          {t.flashcardsMode}
         </Button>
       </div>
 
@@ -4029,11 +4285,11 @@ function Tests({
       {tab === "quiz" && activeQuiz && !quizComplete && quizQuestions.length > 0 && (
         <div className="mt-6">
           <Button className="mb-4 flex items-center gap-2 text-xs font-bold text-accent-bright" onClick={() => setActiveQuiz(null)}>
-            <Icon name="arrow" className="size-3 rotate-180" /> Back to quizzes
+            <Icon name="arrow" className="size-3 rotate-180" /> {t.quizMode}
           </Button>
           <div className="mb-3 flex items-center justify-between text-xs text-copy-muted">
             <span>{activeQuiz}</span>
-            <span>Question {questionIndex + 1} of {quizQuestions.length}</span>
+            <span>{t.questionOf} {questionIndex + 1} {t.from} {quizQuestions.length}</span>
           </div>
           <div className="h-1.5 overflow-hidden rounded-full bg-elevated">
             <div
@@ -4051,12 +4307,12 @@ function Tests({
                 const correct = selectedAnswer !== null && answerIndex === quizQuestions[questionIndex].correct;
                 return (
                   <Button
-                    className={`w-full rounded-xl border p-4 text-left text-sm font-semibold ${
+                    className={`w-full rounded-xl border p-4 text-left text-sm font-semibold transition ${
                       correct
                         ? "border-green/40 bg-green/10 text-green"
                         : selected
                           ? "border-red/40 bg-red/10 text-red"
-                          : "border-line bg-elevated text-copy-muted"
+                          : "border-line bg-elevated text-copy-muted hover:border-accent hover:text-white"
                     }`}
                     key={answer}
                     onClick={() => chooseAnswer(answerIndex)}
@@ -4073,29 +4329,31 @@ function Tests({
             )}
           </section>
           <Button
-            className="mt-4 w-full rounded-xl bg-accent px-4 py-4 text-sm font-bold text-white disabled:opacity-40"
+            className="mt-4 w-full rounded-xl bg-accent px-4 py-4 text-sm font-bold text-white disabled:opacity-40 shadow-glow"
             disabled={selectedAnswer === null}
             onClick={nextQuestion}
           >
-            {questionIndex === quizQuestions.length - 1 ? "Finish Quiz" : "Next Question"}
+            {questionIndex === quizQuestions.length - 1 ? t.finishQuiz : t.nextQuestion}
           </Button>
         </div>
       )}
 
       {tab === "quiz" && quizComplete && (
-        <section className="mt-6 rounded-card border border-green/25 bg-card p-6 text-center">
+        <section className="mt-6 rounded-card border border-green/25 bg-card p-6 text-center shadow-lg">
           <div className="mx-auto grid size-14 place-items-center rounded-full bg-green/10 text-green">
             <Icon name="check" className="size-7" />
           </div>
-          <Heading level={2} className="mt-4 text-xl font-bold text-white">Quiz complete</Heading>
+          <Heading level={2} className="mt-4 text-xl font-bold text-white">
+            {lang === "Kazakh" ? "Тест аяқталды!" : lang === "English" ? "Quiz complete!" : "Тест завершён!"}
+          </Heading>
           <p className="mt-2 text-sm text-copy-muted">
-            You answered {quizScore} of {quizQuestions.length} questions correctly.
+            {t.quizScore}: {quizScore} {t.from} {quizQuestions.length}
           </p>
-          <Button className="mt-6 w-full rounded-xl bg-accent py-4 text-sm font-bold text-white" onClick={() => startQuiz(activeQuiz ?? lecture.title)}>
-            Try Again
+          <Button className="mt-6 w-full rounded-xl bg-accent py-4 text-sm font-bold text-white shadow-glow" onClick={() => startQuiz(activeQuiz ?? lecture.title)}>
+            {t.retakeQuiz}
           </Button>
-          <Button className="mt-3 w-full rounded-xl border border-line py-4 text-sm font-bold text-copy-muted" onClick={() => setActiveQuiz(null)}>
-            Back to Quizzes
+          <Button className="mt-3 w-full rounded-xl border border-line py-4 text-sm font-bold text-copy-muted hover:text-white" onClick={() => setActiveQuiz(null)}>
+            {t.quizMode}
           </Button>
         </section>
       )}
@@ -4104,7 +4362,7 @@ function Tests({
         <div className="mt-6">
           <div className="mb-3 flex items-center justify-between text-xs text-copy-muted">
             <span>{lecture.title}</span>
-            <span>Card {cardIndex + 1} of {flashcards.length}</span>
+            <span>{cardIndex + 1} / {flashcards.length}</span>
           </div>
           <Button
             className={`flip-card relative flex min-h-card w-full flex-col items-center justify-center overflow-hidden rounded-card border border-accent/40 bg-gradient-to-br from-card to-blue-deep p-8 text-center shadow-neon ${
@@ -4135,7 +4393,7 @@ function Tests({
               <Icon name="speaker" className="size-4" />
             </span>
             <span className="text-xs font-bold uppercase tracking-widest text-accent-bright">
-              {flipped ? "Definition" : "Key term"}
+              {flipped ? (lang === "Kazakh" ? "Анықтамасы" : lang === "English" ? "Definition" : "Определение") : (lang === "Kazakh" ? "Кілт сөз" : lang === "English" ? "Key term" : "Термин")}
             </span>
             <span className="mt-5 block text-2xl font-bold leading-tight text-white">
               {(() => {
@@ -4143,7 +4401,7 @@ function Tests({
                 return flipped ? safeCard[1] : safeCard[0];
               })()}
             </span>
-            <span className="mt-7 text-xs text-copy-muted">Tap card to flip</span>
+            <span className="mt-7 text-xs text-copy-muted">{t.flipCard}</span>
           </Button>
 
           <div className="mt-5 grid grid-cols-3 gap-3">
@@ -4186,10 +4444,19 @@ function Tests({
 }
 
 function Teacher({ lecture, onBack }: { lecture: Lecture; onBack: () => void }) {
+  const { t, lang } = useI18n();
   const [voice, setVoice] = useState(false);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<{ role: string; text: string }[]>([
-    { role: "assistant", text: `Hi! Ask me anything about “${lecture.title}”.` },
+    {
+      role: "assistant",
+      text:
+        lang === "Kazakh"
+          ? `Сәлем! «${lecture.title}» лекциясы бойынша кез келген сұрағыңызды қойыңыз.`
+          : lang === "English"
+            ? `Hi! Ask me anything about “${lecture.title}”.`
+            : `Привет! Задайте мне любой вопрос по лекции «${lecture.title}».`,
+    },
   ]);
   const [replying, setReplying] = useState(false);
   const [listening, setListening] = useState(false);
@@ -4333,16 +4600,38 @@ function Teacher({ lecture, onBack }: { lecture: Lecture; onBack: () => void }) 
 
   const callTime = `${String(Math.floor(callSeconds / 60)).padStart(2, "0")}:${String(callSeconds % 60).padStart(2, "0")}`;
 
+  const suggestedPrompts =
+    lang === "Kazakh"
+      ? [
+          "Осы лекцияны қарапайым тілмен түсіндір",
+          "Тәжірибелік мысал келтір",
+          "Маңызды терминдерді талда",
+          "Лекция бойынша тест сұрағын қой",
+        ]
+      : lang === "English"
+        ? [
+            "Explain this simpler",
+            "Give me an example",
+            "Explain the important terms",
+            "Quiz me on this lecture",
+          ]
+        : [
+            "Объясни проще",
+            "Приведи практический пример",
+            "Разбери важные термины",
+            "Проэкзаменуй меня по лекции",
+          ];
+
   return (
-    <div className="page-enter flex min-h-content flex-col px-5">
+    <div className="page-enter flex min-h-content flex-col px-4 sm:px-6 md:px-8 py-2 md:py-4 max-w-4xl mx-auto w-full">
       <TopBar
         subtitle={`Context: ${lecture.title}`}
-        title="AI Teacher"
+        title={t.teacherTitle}
         action={
           <div className="flex items-center gap-2">
             <Button
               aria-label="Back to lecture summary"
-              className="grid size-10 place-items-center rounded-full border border-line bg-card text-copy-muted"
+              className="grid size-10 place-items-center rounded-full border border-line bg-card text-copy-muted transition hover:text-white"
               onClick={onBack}
             >
               <Icon name="arrow" className="size-4 rotate-180" />
@@ -4357,19 +4646,19 @@ function Teacher({ lecture, onBack }: { lecture: Lecture; onBack: () => void }) 
 
       <div className="grid grid-cols-2 rounded-xl bg-card p-1">
         <Button
-          className={`rounded-lg py-3 text-xs font-bold ${!voice ? "bg-accent text-white" : "text-copy-muted"}`}
+          className={`rounded-lg py-3 text-xs font-bold transition ${!voice ? "bg-accent text-white shadow-glow" : "text-copy-muted hover:text-white"}`}
           onClick={() => {
             setVoice(false);
             setVoiceCallActive(false);
           }}
         >
-          Text Chat
+          {t.textChat}
         </Button>
         <Button
-          className={`rounded-lg py-3 text-xs font-bold ${voice ? "bg-purple text-white" : "text-copy-muted"}`}
+          className={`rounded-lg py-3 text-xs font-bold transition ${voice ? "bg-purple text-white shadow-purple" : "text-copy-muted hover:text-white"}`}
           onClick={() => setVoice(true)}
         >
-          Voice Call Mode
+          {t.voiceCall}
         </Button>
       </div>
 
@@ -4381,11 +4670,11 @@ function Teacher({ lecture, onBack }: { lecture: Lecture; onBack: () => void }) 
             </div>
           </div>
           <Heading level={2} className="mt-8 text-xl font-bold text-white">
-            {voiceCallActive ? "AI Teacher is listening" : "Ready when you are"}
+            {voiceCallActive ? (lang === "Kazakh" ? "AI Оқытушы тыңдауда…" : "AI Teacher is listening") : (lang === "Kazakh" ? "Сұрақ қоюға дайын" : "Ready when you are")}
           </Heading>
           <p className="mt-2 max-w-xs text-sm leading-6 text-copy-muted">
             {voiceCallActive
-              ? `Voice call active · ${callTime}. Ask about ${lecture.title} or its important terms.`
+              ? `Voice call active · ${callTime}. Ask about ${lecture.title}.`
               : `Ask anything about ${lecture.title} using your voice.`}
           </p>
           {voiceCallActive && (
@@ -4401,23 +4690,20 @@ function Teacher({ lecture, onBack }: { lecture: Lecture; onBack: () => void }) 
             onClick={() => setVoiceCallActive((value) => !value)}
           >
             <Icon name={voiceCallActive ? "stop" : "mic"} className="size-5" />
-            {voiceCallActive ? "End voice call" : "Start voice call"}
+            {voiceCallActive ? (lang === "Kazakh" ? "Қоңырауды аяқтау" : "Завершить звонок") : (lang === "Kazakh" ? "Дауыспен сөйлесу" : "Начать звонок")}
           </Button>
         </div>
       ) : (
         <>
           <div className="flex-1 space-y-5 py-6">
             <div>
-              <div className="mb-2 text-mini font-bold uppercase tracking-wider text-copy-dim">Suggested prompts</div>
+              <div className="mb-2 text-mini font-bold uppercase tracking-wider text-copy-dim">
+                {lang === "Kazakh" ? "Ұсынылатын сұрақтар" : lang === "English" ? "Suggested prompts" : "Популярные вопросы"}
+              </div>
               <div className="flex flex-wrap gap-2">
-                {[
-                  "Explain this simpler",
-                  "Give me an example",
-                  "Explain the important terms",
-                  "Quiz me on this lecture",
-                ].map((prompt) => (
+                {suggestedPrompts.map((prompt) => (
                   <Button
-                    className="rounded-full border border-line bg-card px-3 py-2 text-xs font-semibold text-copy-muted"
+                    className="rounded-full border border-line bg-card px-3.5 py-1.5 text-xs font-semibold text-copy-muted transition hover:border-accent hover:text-white"
                     key={prompt}
                     onClick={() => sendMessage(prompt)}
                   >
@@ -4429,16 +4715,16 @@ function Teacher({ lecture, onBack }: { lecture: Lecture; onBack: () => void }) 
             {messages.map((item, index) =>
               item.role === "user" ? (
                 <div className="flex justify-end" key={`${item.text}-${index}`}>
-                  <div className="max-w-chat rounded-2xl rounded-br-md bg-accent px-4 py-3 text-sm leading-6 text-white">
+                  <div className="max-w-chat rounded-2xl rounded-br-md bg-accent px-4 py-3 text-sm leading-6 text-white shadow-glow">
                     {item.text}
                   </div>
                 </div>
               ) : (
                 <div className="flex items-start gap-2" key={`${item.text}-${index}`}>
-                  <div className="mt-1 grid size-8 shrink-0 place-items-center rounded-xl bg-purple text-white">
+                  <div className="mt-1 grid size-8 shrink-0 place-items-center rounded-xl bg-purple text-white shadow-sm">
                     <Icon name="sparkles" className="size-4" />
                   </div>
-                  <div className="max-w-chat rounded-2xl rounded-tl-md border border-line bg-card p-4 text-sm leading-6 text-copy-muted">
+                  <div className="max-w-chat rounded-2xl rounded-tl-md border border-line bg-card p-4 text-sm leading-6 text-copy whitespace-pre-line shadow-sm">
                     {item.text}
                   </div>
                 </div>
@@ -4447,7 +4733,7 @@ function Teacher({ lecture, onBack }: { lecture: Lecture; onBack: () => void }) 
             {replying && (
               <div className="flex items-center gap-2 text-xs font-semibold text-purple-light">
                 <span className="size-2 animate-pulse rounded-full bg-purple" />
-                AI Teacher is thinking…
+                {t.teacherTitle}…
               </div>
             )}
           </div>
@@ -4465,14 +4751,14 @@ function Teacher({ lecture, onBack }: { lecture: Lecture; onBack: () => void }) 
                 <Icon name={listening ? "stop" : "mic"} className="size-4" />
               </Button>
               <Input
-                className="min-w-0 flex-1 bg-transparent px-1 text-sm text-white outline-none placeholder:text-copy-dim"
+                className="min-w-0 flex-1 bg-transparent px-2 text-sm text-white outline-none placeholder:text-copy-dim"
                 onChange={(event) => setMessage(event.target.value)}
                 onKeyDown={(event) => event.key === "Enter" && submit()}
-                placeholder={listening ? "Listening…" : "Ask about this lecture..."}
+                placeholder={listening ? "Listening…" : t.askAnything}
                 value={message}
               />
               <Button
-                className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent text-white disabled:opacity-40"
+                className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent text-white disabled:opacity-40 shadow-glow"
                 disabled={!message.trim() || replying}
                 onClick={submit}
               >
@@ -4503,6 +4789,7 @@ function Library({
   onOpen: (row: RecordingRow) => Promise<void>;
   onRecordNew: () => void;
 }) {
+  const { t } = useI18n();
   const [rows, setRows] = useState<RecordingRow[] | null>(null);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -4585,26 +4872,26 @@ function Library({
   });
 
   return (
-    <div className="page-enter px-5">
+    <div className="page-enter px-4 sm:px-6 md:px-8 py-2 md:py-6">
       <TopBar
-        subtitle={`Сохранено лекций: ${rows?.length ?? 0}`}
-        title="Моя библиотека"
+        subtitle={`${t.statLectures}: ${rows?.length ?? 0}`}
+        title={t.libraryTitle}
         action={
           <Button
             className="rounded-xl bg-accent px-3 py-2 text-xs font-bold text-white shadow-glow"
             onClick={onRecordNew}
           >
-            + Записать
+            + {t.navRecord}
           </Button>
         }
       />
 
-      <div className="mb-4 flex items-center gap-3 rounded-2xl border border-line bg-card px-4 py-3">
+      <div className="mb-6 flex items-center gap-3 rounded-2xl border border-line bg-card px-4 py-3">
         <Icon name="search" className="size-4 text-copy-muted" />
         <Input
           className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-copy-dim"
           onChange={(e) => setFilterQuery(e.target.value)}
-          placeholder="Поиск по названию или тексту лекции..."
+          placeholder={t.searchLibrary}
           value={filterQuery}
         />
         {filterQuery && (
@@ -4617,21 +4904,21 @@ function Library({
       {error && (
         <p className="mb-4 rounded-xl border border-red/30 bg-red/10 p-3 text-xs leading-5 text-red">{error}</p>
       )}
-      {rows === null && <p className="text-sm text-copy-muted">Загрузка ваших лекций…</p>}
+      {rows === null && <p className="text-sm text-copy-muted">{t.loading}</p>}
       {rows?.length === 0 && !error && (
-        <div className="rounded-card border border-line bg-card p-6 text-center">
+        <div className="rounded-card border border-line bg-card p-8 text-center max-w-lg mx-auto my-8">
           <p className="text-sm leading-6 text-copy-muted">
-            В библиотеке пока нет лекций. Запишите живую лекцию или загрузите аудио/PDF-файл!
+            {t.noRecordingsYet}
           </p>
           <Button
             className="mt-4 rounded-xl bg-gradient-to-r from-accent to-purple px-5 py-3 text-xs font-bold text-white shadow-glow"
             onClick={onRecordNew}
           >
-            Записать первую лекцию
+            {t.recordLecture}
           </Button>
         </div>
       )}
-      <div className="space-y-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredRows.map((row) => {
           const hasSum = hasJsonContent(row.summary);
           const hasStu = hasJsonContent(row.study);
@@ -4953,7 +5240,14 @@ export default function App({
 
   return (
     <div className="min-h-screen bg-page">
-      <div className="relative mx-auto min-h-screen max-w-md overflow-x-hidden bg-app pb-page shadow-phone">
+      <div className="relative mx-auto min-h-screen w-full max-w-md md:max-w-5xl lg:max-w-7xl overflow-x-hidden bg-app pb-page md:pb-12 shadow-phone md:shadow-2xl md:border-x md:border-line transition-all duration-300">
+        <DesktopNavbar
+          screen={screen}
+          onNavigate={navigate}
+          onOpenAuth={onOpenAuth}
+          isGuest={isGuest}
+          userName={selectedLecture?.professor}
+        />
         {screen === "home" && (
           <Home
             isGuest={isGuest}
