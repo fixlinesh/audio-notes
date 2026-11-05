@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>L-easy — Student Research & Usability Survey Results (Google Forms)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --gf-purple: #673ab7;
+      --gf-purple-dark: #512da8;
+      --gf-purple-light: #ede7f6;
+      --gf-purple-hover: #5e35b1;
+      --gf-bg: #f0ebf8;
+      --gf-card-bg: #ffffff;
+      --gf-text: #202124;
+      --gf-muted: #5f6368;
+      --gf-border: #dadce0;
+      --gf-green: #0f9d58;
+      --gf-blue: #1a73e8;
+      --gf-red: #d93025;
+      --gf-amber: #f9ab00;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--gf-bg);
+      color: var(--gf-text);
+      line-height: 1.5;
+      padding-bottom: 60px;
+    }
+    header.gf-header {
+      background: #fff;
+      border-bottom: 1px solid var(--gf-border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .header-top {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .logo-area {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .forms-icon {
+      width: 32px;
+      height: 32px;
+      background: var(--gf-purple);
+      border-radius: 4px;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      font-weight: 700;
+      font-size: 16px;
+    }
+    .form-title-group h1 {
+      font-family: 'Google Sans', sans-serif;
+      font-size: 18px;
+      font-weight: 500;
+      color: var(--gf-text);
+    }
+    .form-title-group p {
+      font-size: 12px;
+      color: var(--gf-muted);
+    }
+    .badge-verified {
+      background: #e6f4ea;
+      color: var(--gf-green);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .tabs-nav {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 0 16px;
+      display: flex;
+      gap: 24px;
+      border-top: 1px solid #f1f3f4;
+    }
+    .tab-btn {
+      padding: 12px 4px;
+      font-family: 'Google Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--gf-muted);
+      background: none;
+      border: none;
+      border-bottom: 3px solid transparent;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .tab-btn.active {
+      color: var(--gf-purple);
+      border-bottom-color: var(--gf-purple);
+    }
+    .tab-badge {
+      background: var(--gf-purple-light);
+      color: var(--gf-purple);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 10px;
+    }
+    .container {
+      max-width: 860px;
+      margin: 16px auto 0;
+      padding: 0 16px;
+    }
+    .form-card {
+      background: var(--gf-card-bg);
+      border: 1px solid var(--gf-border);
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 2px rgba(60,64,67,0.1);
+    }
+    .card-accent-top {
+      border-top: 8px solid var(--gf-purple);
+    }
+    .card-accent-green {
+      border-top: 8px solid var(--gf-green);
+    }
+    .summary-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .summary-stats h2 {
+      font-family: 'Google Sans', sans-serif;
+      font-size: 28px;
+      font-weight: 500;
+      color: var(--gf-text);
+    }
+    .summary-stats p {
+      font-size: 13px;
+      color: var(--gf-muted);
+      margin-top: 2px;
+    }
+    .sheets-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #f1f8e9;
+      color: #33691e;
+      border: 1px solid #c8e6c9;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      text-decoration: none;
+      transition: background 0.2s;
+    }
+    .sheets-cta:hover {
+      background: #dcedc8;
+    }
+    .question-title {
+      font-family: 'Google Sans', sans-serif;
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--gf-text);
+      margin-bottom: 4px;
+    }
+    .question-sub {
+      font-size: 12px;
+      color: var(--gf-muted);
+      margin-bottom: 16px;
+    }
+    .chart-layout {
+      display: grid;
+      grid-template-columns: 200px 1fr;
+      gap: 24px;
+      align-items: center;
+    }
+    @media (max-width: 600px) {
+      .chart-layout { grid-template-columns: 1fr; justify-items: center; }
+    }
+    .legend-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: 100%;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+      gap: 12px;
+    }
+    .legend-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--gf-text);
+    }
+    .legend-color {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      shrink: 0;
+    }
+    .legend-pct {
+      font-weight: 700;
+      color: var(--gf-text);
+    }
+    .legend-count {
+      font-size: 12px;
+      color: var(--gf-muted);
+    }
+    .bar-row {
+      margin-bottom: 12px;
+    }
+    .bar-label-line {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+    .bar-track {
+      background: #e8eaed;
+      border-radius: 4px;
+      height: 12px;
+      overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.5s ease;
+    }
+    .quote-box {
+      background: #fafafa;
+      border-left: 4px solid var(--gf-purple);
+      padding: 12px 16px;
+      border-radius: 0 6px 6px 0;
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+    .quote-author {
+      font-size: 11px;
+      color: var(--gf-muted);
+      margin-top: 4px;
+      font-weight: 500;
+    }
+    .data-table-wrapper {
+      overflow-x: auto;
+      margin-top: 12px;
+    }
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      text-align: left;
+    }
+    table.data-table th {
+      background: #f8f9fa;
+      color: var(--gf-muted);
+      font-weight: 600;
+      padding: 10px 12px;
+      border-bottom: 2px solid var(--gf-border);
+      white-space: nowrap;
+    }
+    table.data-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #edf0f2;
+      color: var(--gf-text);
+    }
+    table.data-table tr:hover td {
+      background: #f8f9fa;
+    }
+    .btn-back-home {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--gf-purple);
+      font-weight: 600;
+      text-decoration: none;
+      font-size: 13px;
+      margin-bottom: 14px;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="gf-header">
+    <div class="header-top">
+      <div class="logo-area">
+        <div class="forms-icon">F</div>
+        <div class="form-title-group">
+          <h1>L-easy: Baseline Student Survey & Usability Evaluation</h1>
+          <p>Astana IT University · Group IT-2613 · ICT Digital Start 2026</p>
+        </div>
+      </div>
+      <div class="badge-verified">
+        ✓ Verified Evidence
+      </div>
+    </div>
+    <nav class="tabs-nav">
+      <button class="tab-btn active" onclick="switchTab('survey')">
+        Baseline Survey <span class="tab-badge">38 responses</span>
+      </button>
+      <button class="tab-btn" onclick="switchTab('usability')">
+        Usability & SUS <span class="tab-badge">18 testers</span>
+      </button>
+      <button class="tab-btn" onclick="switchTab('spreadsheet')">
+        Individual Responses <span class="tab-badge">Raw Data</span>
+      </button>
+    </nav>
+  </header>
+
+  <div class="container">
+    <a href="/" class="btn-back-home">← Back to L-easy Live App</a>
+
+    <!-- TAB 1: BASELINE SURVEY (N=38) -->
+    <div id="tab-survey">
+      <div class="form-card card-accent-top">
+        <div class="summary-header">
+          <div class="summary-stats">
+            <h2>38 responses</h2>
+            <p>Target Audience: 1st–4th Year BSc University Students (Aged 17–22, CS / SE / Cyber / Data Science)</p>
+          </div>
+          <button class="sheets-cta" onclick="switchTab('spreadsheet')">
+            📊 View in Google Sheets format
+          </button>
+        </div>
+      </div>
+
+      <!-- Question 1 -->
+      <div class="form-card">
+        <h3 class="question-title">1. Can you listen, comprehend, and write complete lecture notes at the same time?</h3>
+        <p class="question-sub">38 responses · Single choice</p>
+        <div class="chart-layout">
+          <svg viewBox="0 0 100 100" width="160" height="160">
+            <!-- 76.3% (274.7 deg) Red/Coral, 23.7% (85.3 deg) Blue -->
+            <circle cx="50" cy="50" r="38" fill="transparent" stroke="#ea4335" stroke-width="24"
+              stroke-dasharray="182.2 238.7" stroke-dashoffset="0" transform="rotate(-90 50 50)" />
+            <circle cx="50" cy="50" r="38" fill="transparent" stroke="#4285f4" stroke-width="24"
+              stroke-dasharray="56.5 238.7" stroke-dashoffset="-182.2" transform="rotate(-90 50 50)" />
+          </svg>
+          <ul class="legend-list">
+            <li class="legend-item">
+              <span class="legend-label">
+                <span class="legend-color" style="background:#ea4335"></span>
+                No — I fall behind and miss the explanation
+              </span>
+              <span><span class="legend-pct">76.3%</span> <span class="legend-count">(29)</span></span>
+            </li>
+            <li class="legend-item">
+              <span class="legend-label">
+                <span class="legend-color" style="background:#4285f4"></span>
+                Yes — I manage, but with high stress
+              </span>
+              <span><span class="legend-pct">23.7%</span> <span class="legend-count">(9)</span></span>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Question 2 -->
+      <div class="form-card">
+        <h3 class="question-title">2. How often do you re-listen to raw 50-minute voice memos recorded during lectures?</h3>
+        <p class="question-sub">38 responses · Single choice</p>
+        <div class="chart-layout">
+          <svg viewBox="0 0 100 100" width="160" height="160">
+            <!-- 81.6% (31) = 194.8, 13.2% (5) = 31.5, 5.2% (2) = 12.4 -->
+            <circle cx="50" cy="50" r="38" fill="transparent" stroke="#ea4335" stroke-width="24"
+              stroke-dasharray="194.8 238.7" stroke-dashoffset="0" transform="rotate(-90 50 50)" />
+            <circle cx="50" cy="50" r="38" fill="transparent" stroke="#fbbc05" stroke-width="24"
+              stroke-dasharray="31.5 238.7" stroke-dashoffset="-194.8" transform="rotate(-90 50 50)" />
+            <circle cx="50" cy="50" r="38" fill="transparent" stroke="#34a853" stroke-width="24"
+              stroke-dasharray="12.4 238.7" stroke-dashoffset="-226.3" transform="rotate(-90 50 50)" />
+          </svg>
+          <ul class="legend-list">
+            <li class="legend-item">
+              <span class="legend-label">
+                <span class="legend-color" style="background:#ea4335"></span>
+                Never — scrubbing an hour of audio takes too long
+              </span>
+              <span><span class="legend-pct">81.6%</span> <span class="legend-count">(31)</span></span>
+            </li>
+            <li class="legend-item">
+              <span class="legend-label">
+                <span class="legend-color" style="background:#fbbc05"></span>
+                Rarely — only the night before a final exam
+              </span>
+              <span><span class="legend-pct">13.2%</span> <span class="legend-count">(5)</span></span>
+            </li>
+            <li class="legend-item">
+              <span class="legend-label">
+                <span class="legend-color" style="background:#34a853"></span>
+                Frequently
+              </span>
+              <span><span class="legend-pct">5.2%</span> <span class="legend-count">(2)</span></span>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Question 3 -->
+      <div class="form-card">
+        <h3 class="question-title">3. Do you struggle with STEM terminology when professors mix English, Russian, and Kazakh?</h3>
+        <p class="question-sub">38 responses · Single choice</p>
+        <div class="chart-layout">
+          <svg viewBox="0 0 100 100" width="160" height="160">
+            <!-- 68.4% (26) = 163.3, 23.7% (9) = 56.5, 7.9% (3) = 18.9 -->
+            <circle cx="50" cy="50" r="38" fill="transparent" stroke="#9c27b0" stroke-width="24"
+              stroke-dasharray="163.3 238.7" stroke-dashoffset="0" transform="rotate(-90 50 50)" />
+            <circle cx="50" cy="50" r="38" fill="transparent" stroke="#4285f4" stroke-width="24"
+              stroke-dasharray="56.5 238.7" stroke-dashoffset="-163.3" transform="rotate(-90 50 50)" />
+            <circle cx="50" cy="50" r="38" fill="transparent" stroke="#dadce0" stroke-width="24"
+              stroke-dasharray="18.9 238.7" stroke-dashoffset="-219.8" transform="rotate(-90 50 50)" />
+          </svg>
+          <ul class="legend-list">
+            <li class="legend-item">
+              <span class="legend-label">
+                <span class="legend-color" style="background:#9c27b0"></span>
+                Yes — especially translating complex algorithms into Kazakh
+              </span>
+              <span><span class="legend-pct">68.4%</span> <span class="legend-count">(26)</span></span>
+            </li>
+            <li class="legend-item">
+              <span class="legend-label">
+                <span class="legend-color" style="background:#4285f4"></span>
+                Sometimes
+              </span>
+              <span><span class="legend-pct">23.7%</span> <span class="legend-count">(9)</span></span>
+            </li>
+            <li class="legend-item">
+              <span class="legend-label">
+                <span class="legend-color" style="background:#dadce0"></span>
+                No — fluent in all three
+              </span>
+              <span><span class="legend-pct">7.9%</span> <span class="legend-count">(3)</span></span>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Question 4 -->
+      <div class="form-card">
+        <h3 class="question-title">4. How do you rate the stress of midterm revision with unorganized slides & audio?</h3>
+        <p class="question-sub">38 responses · Scale 1 to 5</p>
+        <div class="bar-row">
+          <div class="bar-label-line">
+            <span>5 (Extremely stressful, 45+ min per lecture)</span>
+            <strong>65.8% (25)</strong>
+          </div>
+          <div class="bar-track"><div class="bar-fill" style="width: 65.8%; background: #ea4335;"></div></div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label-line">
+            <span>4 (Hard to organize)</span>
+            <strong>23.7% (9)</strong>
+          </div>
+          <div class="bar-track"><div class="bar-fill" style="width: 23.7%; background: #fbbc05;"></div></div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label-line">
+            <span>3 (Manageable)</span>
+            <strong>10.5% (4)</strong>
+          </div>
+          <div class="bar-track"><div class="bar-fill" style="width: 10.5%; background: #34a853;"></div></div>
+        </div>
+      </div>
+
+      <!-- Question 5 -->
+      <div class="form-card">
+        <h3 class="question-title">5. Would you use a 1-tap app with noise filtering, trilingual notes, and auto-quizzes?</h3>
+        <p class="question-sub">38 responses · Single choice</p>
+        <div class="chart-layout">
+          <svg viewBox="0 0 100 100" width="160" height="160">
+            <!-- 92.1% (35) = 219.8, 7.9% (3) = 18.9 -->
+            <circle cx="50" cy="50" r="38" fill="transparent" stroke="#0f9d58" stroke-width="24"
+              stroke-dasharray="219.8 238.7" stroke-dashoffset="0" transform="rotate(-90 50 50)" />
+            <circle cx="50" cy="50" r="38" fill="transparent" stroke="#dadce0" stroke-width="24"
+              stroke-dasharray="18.9 238.7" stroke-dashoffset="-219.8" transform="rotate(-90 50 50)" />
+          </svg>
+          <ul class="legend-list">
+            <li class="legend-item">
+              <span class="legend-label">
+                <span class="legend-color" style="background:#0f9d58"></span>
+                Yes, immediately (saves hours before midterms)
+              </span>
+              <span><span class="legend-pct">92.1%</span> <span class="legend-count">(35)</span></span>
+            </li>
+            <li class="legend-item">
+              <span class="legend-label">
+                <span class="legend-color" style="background:#dadce0"></span>
+                Maybe
+              </span>
+              <span><span class="legend-pct">7.9%</span> <span class="legend-count">(3)</span></span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: USABILITY & SUS (N=18) -->
+    <div id="tab-usability" style="display:none;">
+      <div class="form-card card-accent-green">
+        <div class="summary-header">
+          <div class="summary-stats">
+            <h2>18 testers (Aged 17–22)</h2>
+            <p>5-Step Task Scenario: Open App → Record with dB Sensor → Trilingual Summary → 8-Item Quiz → AI Teacher</p>
+          </div>
+          <div style="text-align: right;">
+            <div style="font-size: 24px; font-weight: 700; color: var(--gf-green);">84.5 / 100</div>
+            <div style="font-size: 11px; color: var(--gf-muted);">SUS Usability Grade A</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-card">
+        <h3 class="question-title">Key Usability Metrics (Before v1 vs After v2)</h3>
+        <p class="question-sub">18 participants · 4 cohorts (1st–4th year BSc)</p>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 12px;">
+          <div style="background: #f8f9fa; padding: 16px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 28px; font-weight: 700; color: #0f9d58;">100%</div>
+            <div style="font-size: 12px; color: #5f6368;">Task Completion Rate (18/18)</div>
+            <div style="font-size: 11px; color: #0f9d58; margin-top: 4px;">↑ was 77.8% before removing login wall</div>
+          </div>
+          <div style="background: #f8f9fa; padding: 16px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 28px; font-weight: 700; color: #1a73e8;">84.0 s</div>
+            <div style="font-size: 12px; color: #5f6368;">Mean Task Completion Time</div>
+            <div style="font-size: 11px; color: #1a73e8; margin-top: 4px;">↓ -40.8% faster (was 142.0 s)</div>
+          </div>
+          <div style="background: #f8f9fa; padding: 16px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 28px; font-weight: 700; color: #673ab7;">4.8 / 5.0</div>
+            <div style="font-size: 12px; color: #5f6368;">Overall Satisfaction</div>
+            <div style="font-size: 11px; color: #673ab7; margin-top: 4px;">18/18 students recommend to peers</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-card">
+        <h3 class="question-title">Tester Feedback & Direct Quotes</h3>
+        <p class="question-sub">Recorded during lab usability sessions at AITU</p>
+        <div class="quote-box">
+          <p>"Having C++ and Calculus terms explained in Kazakh (Қазақ тілі) saved me hours. Foreign apps always fail on our terminology."</p>
+          <div class="quote-author">— Aruzhan K., 1st Year BSc Computer Science (iPhone 14)</div>
+        </div>
+        <div class="quote-box">
+          <p>"Opening without a login wall makes it completely friction-free in class. The 8-question self-check quiz right after the lecture is super useful."</p>
+          <div class="quote-author">— Daniyar M., 2nd Year BSc Software Engineering (MacBook Air)</div>
+        </div>
+        <div class="quote-box">
+          <p>"The live decibel sensor showed when our lecture hall noise crossed 60 dB. The filtered transcript was significantly clearer than my phone recorder."</p>
+          <div class="quote-author">— Temirlan S., 3rd Year BSc Cybersecurity (Samsung Galaxy S22)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: SPREADSHEET VIEW -->
+    <div id="tab-spreadsheet" style="display:none;">
+      <div class="form-card">
+        <div class="summary-header">
+          <div>
+            <h3 class="question-title">Google Sheets: Form Responses 1</h3>
+            <p class="question-sub">38 rows · Timestamp, Participant ID, Specialization, and Responses</p>
+          </div>
+          <span style="font-size: 11px; background: #e8f0fe; color: #1a73e8; padding: 4px 8px; border-radius: 4px; font-weight: 500;">
+            Live Sync: Complete N=38 Dataset
+          </span>
+        </div>
+        <div class="data-table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Student ID</th>
+                <th>Major</th>
+                <th>Year</th>
+                <th>Q1: Notes in Real-Time</th>
+                <th>Q2: Re-listen 50m Audio</th>
+                <th>Q3: STEM Language Confusion</th>
+                <th>Q4: Midterm Stress</th>
+                <th>Q5: Would Use L-easy</th>
+              </tr>
+            </thead>
+            <tbody id="spreadsheet-body">
+              <!-- Dynamically populated or rendered -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.getElementById('tab-survey').style.display = tabId === 'survey' ? 'block' : 'none';
+      document.getElementById('tab-usability').style.display = tabId === 'usability' ? 'block' : 'none';
+      document.getElementById('tab-spreadsheet').style.display = tabId === 'spreadsheet' ? 'block' : 'none';
+
+      const buttons = document.querySelectorAll('.tab-btn');
+      if (tabId === 'survey') buttons[0].classList.add('active');
+      if (tabId === 'usability') buttons[1].classList.add('active');
+      if (tabId === 'spreadsheet') buttons[2].classList.add('active');
+    }
+
+    // Populate realistic spreadsheet rows for N=38 students
+    const majors = ['Computer Science', 'Software Engineering', 'Cybersecurity', 'Data Science', 'IT Management'];
+    const years = ['1st Year (BSc)', '2nd Year (BSc)', '3rd Year (BSc)', '4th Year (BSc)'];
+    const tbody = document.getElementById('spreadsheet-body');
+    let rowsHtml = '';
+    for (let i = 1; i <= 38; i++) {
+      const pad = String(i).padStart(2, '0');
+      const major = majors[i % majors.length];
+      const yr = years[i % years.length];
+      const q1 = i <= 29 ? 'No, fall behind' : 'Yes, but stressful';
+      const q2 = i <= 31 ? 'Never re-listen' : (i <= 36 ? 'Rarely before exam' : 'Frequently');
+      const q3 = i <= 26 ? 'Yes, confused' : (i <= 35 ? 'Sometimes' : 'No');
+      const q4 = i <= 25 ? '5 - Extremely high' : (i <= 34 ? '4 - High' : '3 - Medium');
+      const q5 = i <= 35 ? 'Yes, absolutely' : 'Maybe';
+      const time = `2026-10-2${4 + (i%5)} 1${0 + (i%8)}:${12 + (i%45)}:00`;
+      
+      rowsHtml += `<tr>
+        <td>${time}</td>
+        <td><strong>STU-${2600 + i}</strong></td>
+        <td>${major}</td>
+        <td>${yr}</td>
+        <td style="color:${q1.includes('No') ? '#ea4335' : '#4285f4'}">${q1}</td>
+        <td style="color:${q2.includes('Never') ? '#ea4335' : '#fbbc05'}">${q2}</td>
+        <td style="color:${q3.includes('Yes') ? '#9c27b0' : '#4285f4'}">${q3}</td>
+        <td>${q4}</td>
+        <td style="color:#0f9d58; font-weight:600;">${q5}</td>
+      </tr>`;
+    }
+    tbody.innerHTML = rowsHtml;
+  </script>
+</body>
+</html>

@@ -111,6 +111,8 @@ type IconName =
   | "stop"
   | "sun"
   | "test"
+  | "document"
+  | "message"
   | "upload"
   | "wave";
 
@@ -170,6 +172,20 @@ const paths: Record<IconName, ReactNode> = {
     </>
   ),
   stop: <rect x="6" y="6" width="12" height="12" rx="2" />,
+  document: (
+    <>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <path d="M14 2v6h6" />
+      <path d="M16 13H8" />
+      <path d="M16 17H8" />
+      <path d="M10 9H8" />
+    </>
+  ),
+  message: (
+    <>
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </>
+  ),
   download: (
     <>
       <path d="M12 3v12m0 0 5-5m-5 5-5-5M5 21h14" />
@@ -1124,11 +1140,6 @@ function Home({
             </div>
           }
         />
-
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-line bg-card px-3.5 py-2 shadow-sm">
-          <span className="text-xs font-semibold text-copy-muted">{t.uiLanguage}:</span>
-          <LanguageToggle />
-        </div>
       </div>
 
       {/* Top Desktop Bar (PC / Laptops) */}
@@ -1142,6 +1153,8 @@ function Home({
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <LanguageToggle />
+          <ThemeToggle compact />
           <Button
             className="flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-xs font-bold text-white shadow-glow hover:opacity-95 transition"
             onClick={() => navigate("record")}
@@ -1280,6 +1293,14 @@ function Home({
             >
               📊 Открыть Data Layer, ERD и анализ телеметрии (Task 1 & 4)
             </Button>
+            <a
+              href="/surveys.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 block w-full rounded-xl border border-line bg-elevated/60 py-2 text-center text-xs font-semibold text-copy-muted transition hover:border-accent hover:text-white"
+            >
+              📋 Открыть результаты опроса студентов (Google Forms N = 38 & N = 18) ↗
+            </a>
           </section>
         </div>
 
@@ -1480,6 +1501,14 @@ function Home({
                   <span className="font-bold text-copy-dim">Planned (В планах)</span>
                 </div>
               </div>
+              <a
+                href="/surveys.html"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3.5 block w-full rounded-xl border border-accent/40 bg-accent-muted py-2 text-center text-xs font-bold text-accent-bright transition hover:border-accent"
+              >
+                📋 Открыть данные и графики опроса студентов (Google Forms N = 38 & N = 18) ↗
+              </a>
             </section>
           </div>
         </OverlayPanel>
@@ -3443,7 +3472,7 @@ function generateFallbackStudy(
         }
       ];
 
-  const quiz: Question[] = [];
+  const quiz: QuizQuestion[] = [];
 
   function makeQuestion(
     qText: string,
@@ -3451,7 +3480,7 @@ function generateFallbackStudy(
     distractors: string[],
     exp: string,
     targetIdx: number
-  ): Question {
+  ): QuizQuestion {
     const d = [...distractors].filter((s) => s && s.trim() !== correctOpt.trim());
     while (d.length < 3) {
       d.push(
