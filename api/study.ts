@@ -36,20 +36,24 @@ export async function POST(request: Request) {
   const language = sanitizeLang(body.language, "English");
 
   const prompt = `
-You are an expert teacher making a self-check test for a student from the lecture transcript below.
-The transcript comes from speech recognition and may contain errors; fix obvious ones using context.
+You are an expert university professor creating a high-quality academic self-check test and flashcards strictly based on the lecture material below.
+The material comes from speech recognition / lecture notes and may contain errors; fix obvious ones using context.
 Write everything in ${language}.
 
 Create:
-- 8 multiple-choice questions. Each has exactly 4 answer options with exactly one correct answer, and a one or two sentence explanation of why it is correct. Test understanding of the lecture's key ideas, not trivia. Wrong options must be plausible but clearly wrong according to the lecture.
-- 8 flashcards: a short key term or question on the front and a clear definition or answer on the back.
-Use only facts supported by the lecture.
+- 8 substantive, specific multiple-choice questions directly testing the actual concepts, facts, causes, mechanisms, or principles from this lecture.
+  * DO NOT ask generic meta-questions (e.g., avoid "What is the goal of studying this topic", "What should a student avoid").
+  * Ask concrete, factual, and analytical questions (e.g., "Why did X happen according to the lecture?", "Which definition best explains Y?", "What was the direct consequence of Z?").
+  * Each question must have exactly 4 plausible, well-written academic answer options. One is correct, and three are realistic distractors relevant to the lecture's field.
+  * Provide a concise, clear explanation for why the correct answer is right based on the lecture.
+  * Distribute the correct answer index randomly among 0, 1, 2, and 3 across the questions.
+- 8 flashcards: a clear, specific key term or concept on the front and an accurate academic definition or explanation on the back.
 
 Lecture title: ${title}
 
-<transcript>
+<lecture_content>
 ${transcript}
-</transcript>
+</lecture_content>
 `;
 
   const result = await callGemini([{ text: prompt }], {

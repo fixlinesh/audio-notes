@@ -3313,191 +3313,202 @@ function generateFallbackStudy(
           const term = t.trim();
           const def = rest.join(sep).trim();
           if (term && def) extractedCards.push({ term, definition: def });
+        } else if (raw.trim()) {
+          extractedCards.push({
+            term: raw.trim(),
+            definition:
+              language === "Kazakh"
+                ? `«${cleanTitle}» лекциясының маңызды ұғымы.`
+                : language === "English"
+                  ? `Key academic concept from the lecture "${cleanTitle}".`
+                  : `Ключевое академическое понятие лекции «${cleanTitle}».`,
+          });
         }
       }
     }
   }
 
-  if (language === "Russian") {
-    const flashcards = extractedCards.length >= 2
-      ? extractedCards
-      : [
-          { term: cleanTitle, definition: summary?.explanation || `Центральная тема лекции по дисциплине «${cleanSubj}».` },
-          { term: `Основной принцип «${cleanTitle}»`, definition: summary?.simplified || `Базовый теоретический механизм и логическое обоснование темы.` },
-          { term: `Практический метод «${cleanTitle}»`, definition: summary?.example || `Способ решения прикладных задач и реализации проектов по направлению «${cleanSubj}».` },
-          { term: "Методика Active Recall", definition: "Техника самопроверки через активное извлечение знаний, повышающая запоминание до 40%." }
-        ];
-
-    return {
-      quiz: [
-        {
-          question: `Какова главная цель изучения темы «${cleanTitle}» в рамках дисциплины «${cleanSubj}»?`,
-          answers: [
-            "Поверхностное заучивание терминов без понимания сути",
-            `Глубокое освоение фундаментальных принципов и практическое применение методов темы «${cleanTitle}»`,
-            `Полный отказ от использования теоретических моделей дисциплины «${cleanSubj}»`,
-            "Изучение посторонних вопросов, не имеющих отношения к предмету"
-          ],
-          correct: 1,
-          explanation: `Изучение «${cleanTitle}» направлено на формирование системного понимания концепций дисциплины «${cleanSubj}» и умения применять их на практике.`
-        },
-        {
-          question: `Какой критерий является ключевым при анализе и оценке темы «${cleanTitle}»?`,
-          answers: [
-            "Случайный выбор параметров без логического обоснования",
-            `Корректность применения базовых правил, структуры и взаимосвязи элементов темы «${cleanTitle}»`,
-            "Исключительно внешнее оформление без опоры на теоретические основы",
-            "Замена аналитических методов догадками"
-          ],
-          correct: 1,
-          explanation: `Оценка темы «${cleanTitle}» строится на строгом соответствии теоретическим основам и логической согласованности решений.`
-        },
-        {
-          question: `Какое практическое значение имеет качественное освоение материала «${cleanTitle}»?`,
-          answers: [
-            "Материал не имеет практической ценности для студента",
-            `Возможность безошибочно решать практические задания, анализировать кейсы и успешно сдать экзамен`,
-            "Исключение необходимости самостоятельной работы над проектами",
-            "Применение только устаревших и неэффективных подходов"
-          ],
-          correct: 1,
-          explanation: `Знание «${cleanTitle}» обеспечивает надёжную базу для практических и экзаменационных испытаний.`
-        },
-        {
-          question: `Как рекомендуется закреплять изученные концепции по теме «${cleanTitle}»?`,
-          answers: [
-            "Однократным пассивным пролистыванием слайдов накануне сессии",
-            `Регулярным активным самоконтролем через карточки терминов, тесты и объяснение своими словами`,
-            "Игнорированием глоссария и конспектов лекций",
-            "Заучиванием случайных фрагментов без контекста"
-          ],
-          correct: 1,
-          explanation: "Активное воспроизведение знаний (Active Recall) увеличивает долгосрочное удержание материала до 40%."
-        }
-      ],
-      flashcards
-    };
-  }
-
-  if (language === "Kazakh") {
-    const flashcards = extractedCards.length >= 2
-      ? extractedCards
-      : [
-          { term: cleanTitle, definition: summary?.explanation || `«${cleanSubj}» пәні бойынша дәрістің негізгі зерттеу тақырыбы.` },
-          { term: `«${cleanTitle}» негізгі қағидасы`, definition: summary?.simplified || `Тақырыптың басты теориялық заңдылығы мен түсіндірмесі.` },
-          { term: `Тәжірибеде қолдану`, definition: summary?.example || `«${cleanTitle}» бойынша алған білімді практикалық тапсырмаларда тиімді пайдалану.` },
-          { term: "Active Recall әдісі", definition: "Алған білімді карточкалар мен тест арқылы белсенді қайталап, есте сақтауды 40%-ға арттыру." }
-        ];
-
-    return {
-      quiz: [
-        {
-          question: `«${cleanTitle}» («${cleanSubj}») тақырыбын меңгерудің басты мақсаты қандай?`,
-          answers: [
-            "Анықтамаларды түсінбей, жаттанды түрде қайталау",
-            `«${cleanTitle}» тақырыбының негізгі қағидаларын терең түсініп, оларды тәжірибеде дұрыс қолдану`,
-            `«${cleanSubj}» пәнінің заңдылықтарынан бас тарту`,
-            "Сабақ мазмұнына сәйкес келмейтін тақырыптарды таңдау"
-          ],
-          correct: 1,
-          explanation: `«${cleanTitle}» тақырыбы жүйелі білім қалыптастырып, емтихан мен тәжірибеде нақты нәтижеге қол жеткізуге бағытталған.`
-        },
-        {
-          question: `«${cleanTitle}» материалын талдау кезіндегі басты талап қандай?`,
-          answers: [
-            "Логикалық негізсіз кездейсоқ шешімдер қабылдау",
-            `Негізгі ұғымдар мен процестердің өзара байланысын және дұрыс құрылымын сақтау`,
-            "Пәннің теориялық базасын елемеу",
-            "Тек сыртқы пішініне мән беріп, мазмұнын түсінбеу"
-          ],
-          correct: 1,
-          explanation: `Тақырыпты дұрыс игеру логикалық жүйелілікке және анықтамалардың нақтылығына негізделеді.`
-        },
-        {
-          question: `«${cleanTitle}» бойынша алған білімді қалай тиімді бекітуге болады?`,
-          answers: [
-            "Дәрісті тек бір рет көз жүгіртіп оқумен шектелу",
-            `Флэшкарталар, тест сұрақтары және өзін-өзі тексеру арқылы белсенді қайталау`,
-            "Глоссарий мен негізгі терминдерді елемеу",
-            "Түсініксіз сұрақтарды мүлдем талдамау"
-          ],
-          correct: 1,
-          explanation: "Белсенді қайталау (Active Recall) әдісі ақпараттың ұзақ мерзімді жадта 40%-ға дейін жақсы сақталуын қамтамасыз етеді."
-        },
-        {
-          question: `«${cleanTitle}» тақырыбын меңгерудің студент үшін практикалық пайдасы қандай?`,
-          answers: [
-            "Практикалық тұрғыда ешқандай маңызы жоқ",
-            `Оқу жобалары мен зертханалық тапсырмаларды сапалы орындап, емтиханды сәтті тапсыру`,
-            "Барлық ережелер мен теориялық әдістерден бас тарту",
-            "Қателіктерді дер кезінде түзеуден бас тарту"
-          ],
-          correct: 1,
-          explanation: `«${cleanTitle}» бойынша білім студентке академиялық тапсырмаларды жоғары деңгейде орындауға мүмкіндік береді.`
-        }
-      ],
-      flashcards
-    };
-  }
+  const rawKeyPoints = Array.isArray(summary?.keyPoints) ? summary.keyPoints.filter(Boolean) : [];
 
   const flashcards = extractedCards.length >= 2
     ? extractedCards
     : [
-        { term: cleanTitle, definition: summary?.explanation || `Primary subject and central focus of the lecture in ${cleanSubj}.` },
-        { term: `Core Principle of ${cleanTitle}`, definition: summary?.simplified || `Fundamental theoretical mechanism and logical structure of the topic.` },
-        { term: "Practical Application", definition: summary?.example || `Methodology for applying concepts of ${cleanTitle} to problem solving and coursework.` },
-        { term: "Active Recall", definition: "Self-testing learning methodology that boosts long-term retention by up to 40%." }
+        {
+          term: cleanTitle,
+          definition: summary?.explanation || (
+            language === "Kazakh"
+              ? `«${cleanSubj}» пәні бойынша дәрістің басты тақырыбы.`
+              : language === "English"
+                ? `Core topic of the lecture in ${cleanSubj}.`
+                : `Центральная тема лекции по дисциплине «${cleanSubj}».`
+          )
+        },
+        {
+          term: language === "Kazakh" ? `«${cleanTitle}» негізгі қағидасы` : language === "English" ? `Key Principle of "${cleanTitle}"` : `Основной принцип «${cleanTitle}»`,
+          definition: summary?.simplified || (
+            language === "Kazakh"
+              ? `Тақырыптың басты теориялық заңдылығы мен түсіндірмесі.`
+              : language === "English"
+                ? `Fundamental theoretical mechanism and logical structure of the topic.`
+                : `Базовый теоретический механизм и логическое обоснование темы.`
+          )
+        },
+        {
+          term: language === "Kazakh" ? "Тәжірибелік мысал" : language === "English" ? "Practical Example" : "Практический пример",
+          definition: summary?.example || (
+            language === "Kazakh"
+              ? `«${cleanTitle}» тақырыбын практикада қолдану мысалы.`
+              : language === "English"
+                ? `Applied use case illustrating "${cleanTitle}".`
+                : `Способ решения прикладных задач по направлению «${cleanSubj}».`
+          )
+        },
+        {
+          term: "Active Recall",
+          definition: language === "Kazakh"
+            ? "Алған білімді флешкарталар мен тесттер арқылы белсенді қайталап бекіту әдісі."
+            : language === "English"
+              ? "Self-testing learning methodology that boosts long-term retention by up to 40%."
+              : "Техника самопроверки через активное извлечение знаний, повышающая запоминание до 40%."
+        }
       ];
 
-  return {
-    quiz: [
-      {
-        question: `What is the primary objective of studying "${cleanTitle}" in ${cleanSubj}?`,
-        answers: [
-          "Superficial memorization without conceptual understanding",
-          `Mastering foundational principles and applying structured methods of "${cleanTitle}" in practice`,
-          `Disregarding the core principles of ${cleanSubj}`,
-          "Focusing on unrelated topics outside the curriculum"
+  const quiz: Question[] = [];
+
+  function makeQuestion(
+    qText: string,
+    correctOpt: string,
+    distractors: string[],
+    exp: string,
+    targetIdx: number
+  ): Question {
+    const d = [...distractors].filter((s) => s && s.trim() !== correctOpt.trim());
+    while (d.length < 3) {
+      d.push(
+        language === "Kazakh"
+          ? `Тақырыпқа қатысы бар қосымша болжам (${d.length + 1})`
+          : language === "English"
+            ? `Alternative secondary scenario (${d.length + 1})`
+            : `Альтернативный фактор, не подтверждённый материалами лекции (${d.length + 1})`
+      );
+    }
+    const idx = targetIdx % 4;
+    const answers = [d[0], d[1], d[2]];
+    answers.splice(idx, 0, correctOpt);
+    return {
+      question: qText,
+      answers,
+      correct: idx,
+      explanation: exp,
+    };
+  }
+
+  // 1. Term-based questions (strict ground truth from lecture glossary)
+  for (let i = 0; i < Math.min(extractedCards.length, 3); i++) {
+    const card = extractedCards[i];
+    const otherDefs = extractedCards.filter((_, idx) => idx !== i).map((c) => c.definition);
+    const qText =
+      language === "Kazakh"
+        ? `«${cleanTitle}» дәрісі бойынша «${card.term}» ұғымы нені білдіреді?`
+        : language === "English"
+          ? `According to the lecture "${cleanTitle}", what does "${card.term}" define?`
+          : `Что означает понятие «${card.term}» в контексте лекции «${cleanTitle}»?`;
+    quiz.push(
+      makeQuestion(
+        qText,
+        card.definition,
+        otherDefs,
+        language === "Kazakh"
+          ? `«${card.term}» анықтамасы: ${card.definition}`
+          : language === "English"
+            ? `"${card.term}" is defined as: ${card.definition}`
+            : `Понятие «${card.term}» определяется как: ${card.definition}`,
+        i % 4
+      )
+    );
+  }
+
+  // 2. KeyPoints-based questions (direct takeaways from lecture summary)
+  for (let j = 0; j < Math.min(rawKeyPoints.length, 3); j++) {
+    const point = rawKeyPoints[j];
+    const otherPoints = rawKeyPoints.filter((_, idx) => idx !== j);
+    const qText =
+      language === "Kazakh"
+        ? `«${cleanTitle}» дәрісінің келесі негізгі тұжырымдарының қайсысы дұрыс?`
+        : language === "English"
+          ? `Which of the following is a key takeaway verified by "${cleanTitle}"?`
+          : `Какое из следующих положений является подтверждённым фактом темы «${cleanTitle}»?`;
+    quiz.push(
+      makeQuestion(
+        qText,
+        point,
+        otherPoints,
+        language === "Kazakh"
+          ? `Дәрістің негізгі түйіні: ${point}`
+          : language === "English"
+            ? `Key takeaway from lecture: ${point}`
+            : `Согласно ключевым пунктам лекции: ${point}`,
+        (j + 2) % 4
+      )
+    );
+  }
+
+  // 3. Simplified / Example questions
+  if (summary?.simplified && quiz.length < 5) {
+    const qText =
+      language === "Kazakh"
+        ? `«${cleanTitle}» тақырыбының басты түсіндірмесі қандай?`
+        : language === "English"
+          ? `What is the core simplified explanation of "${cleanTitle}"?`
+          : `В чём заключается суть концепции «${cleanTitle}» простыми словами?`;
+    quiz.push(
+      makeQuestion(
+        qText,
+        summary.simplified,
+        [
+          language === "Kazakh" ? "Тек анықтамаларды жаттап алу" : language === "English" ? "Superficial memorization without context" : "Поверхностное заучивание терминов без понимания сути",
+          language === "Kazakh" ? "Дәріс тақырыбына қатысы жоқ мәліметтер" : language === "English" ? "Unrelated theoretical postulates" : "Теоретические положения из нерелевантных дисциплин",
+          language === "Kazakh" ? "Тек қана абстрактілі мысалдар" : language === "English" ? "Abstract conjectures without verification" : "Исключительно абстрактные гипотезы без доказательств"
         ],
-        correct: 1,
-        explanation: `Studying "${cleanTitle}" develops rigorous conceptual clarity and practical problem-solving capability.`
-      },
-      {
-        question: `What constitutes the central criterion when evaluating "${cleanTitle}"?`,
-        answers: [
-          "Arbitrary guessing without structural justification",
-          `Theoretical correctness, logical consistency, and coherence of essential components`,
-          "Superficial visual presentation without empirical substance",
-          "Skipping foundational definitions"
+        summary.simplified,
+        3
+      )
+    );
+  }
+
+  if (summary?.example && quiz.length < 5) {
+    const qText =
+      language === "Kazakh"
+        ? `«${cleanTitle}» бойынша қандай практикалық мысал қарастырылды?`
+        : language === "English"
+          ? `Which practical example or case was discussed regarding "${cleanTitle}"?`
+          : `Какой прикладной пример или кейс иллюстрирует тему «${cleanTitle}»?`;
+    quiz.push(
+      makeQuestion(
+        qText,
+        summary.example,
+        [
+          language === "Kazakh" ? "Практикалық қолданысы жоқ" : language === "English" ? "No practical applications are possible" : "Практические примеры в данной теме отсутствуют",
+          language === "Kazakh" ? "Тек қана ескірген тәсілдер" : language === "English" ? "Only abstract non-verifiable claims" : "Абстрактные формулы без привязки к реальным задачам",
+          language === "Kazakh" ? "Өмірден алшақ теориялар" : language === "English" ? "Outdated legacy approaches" : "Использование устаревших неэффективных подходов"
         ],
-        correct: 1,
-        explanation: `Rigorous analysis of "${cleanTitle}" demands adherence to theoretical principles and structured reasoning.`
-      },
-      {
-        question: `What is the most effective approach to mastering the concepts of "${cleanTitle}"?`,
-        answers: [
-          "Passive re-reading of slides the night before exams",
-          `Active recall through practice quizzes, flashcards, and self-explanation`,
-          "Ignoring key terminology and glossaries",
-          "Memorizing disconnected fragments without context"
-        ],
-        correct: 1,
-        explanation: "Active recall testing strengthens long-term memory retention by up to 40% compared to passive reading."
-      },
-      {
-        question: `What is the practical impact of understanding "${cleanTitle}"?`,
-        answers: [
-          "It offers no tangible utility for coursework or exams",
-          `It empowers students to resolve complex scenarios, complete laboratory tasks, and excel in exams`,
-          "It prevents applying modern standards to real-world tasks",
-          "It replaces systematic analysis with trial and error"
-        ],
-        correct: 1,
-        explanation: `Mastering "${cleanTitle}" provides the necessary competence to execute coursework and project deliverables successfully.`
-      }
-    ],
-    flashcards
-  };
+        summary.example,
+        1
+      )
+    );
+  }
+
+  // Fallback default question if summary was completely empty
+  if (quiz.length === 0) {
+    const q1 = language === "Kazakh"
+      ? makeQuestion(`«${cleanTitle}» тақырыбы бойынша негізгі бағыт қандай?`, `«${cleanTitle}» бойынша жүйелі білім алып, теорияны тәжірибеде дұрыс қолдану`, ["Ешқандай мақсат жоқ", "Тек жаттанды қайталау", "Тақырыптан тыс мәселелер"], `«${cleanTitle}» пәнінің мақсаты.`, 0)
+      : language === "English"
+        ? makeQuestion(`What is the core focus of "${cleanTitle}"?`, `Systematic mastery of fundamental principles and practical application of "${cleanTitle}"`, ["Random memorization", "Ignoring practical frameworks", "Unrelated concepts"], `Core focus of ${cleanTitle}.`, 0)
+        : makeQuestion(`Каков ключевой фокус темы «${cleanTitle}»?`, `Системное освоение фундаментальных принципов и практическое применение методов темы «${cleanTitle}»`, ["Поверхностное заучивание терминов без понимания сути", "Игнорирование базовых моделей предмета", "Изучение посторонних вопросов"], `Основная направленность изучения темы.`, 0);
+    quiz.push(q1);
+  }
+
+  return { quiz, flashcards };
 }
 
 function LectureSummary({
@@ -3519,6 +3530,51 @@ function LectureSummary({
   const [editing, setEditing] = useState(false);
   const [saved, setSaved] = useState(false);
   const [downloadStatus, setDownloadStatus] = useState("");
+  const [selectedToolbar, setSelectedToolbar] = useState<{
+    text: string;
+    top: number;
+    left: number;
+  } | null>(null);
+  const [copiedSnippet, setCopiedSnippet] = useState(false);
+
+  const checkSelection = () => {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed) {
+      setSelectedToolbar(null);
+      return;
+    }
+    const text = sel.toString().trim();
+    if (text.length < 3) {
+      setSelectedToolbar(null);
+      return;
+    }
+    try {
+      const range = sel.getRangeAt(0);
+      const rect = range.getBoundingClientRect();
+      if (rect.width === 0 && rect.height === 0) {
+        setSelectedToolbar(null);
+        return;
+      }
+      const top = Math.max(12, rect.top - 46);
+      const left = Math.max(16, Math.min(window.innerWidth - 240, rect.left + rect.width / 2 - 110));
+      setSelectedToolbar({ text, top, left });
+    } catch {
+      setSelectedToolbar(null);
+    }
+  };
+
+  useEffect(() => {
+    const onSelectionChange = () => {
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed) {
+        setSelectedToolbar(null);
+      }
+    };
+    document.addEventListener("selectionchange", onSelectionChange);
+    return () => {
+      document.removeEventListener("selectionchange", onSelectionChange);
+    };
+  }, []);
 
   // Состояния для работы с реальным ИИ (Gemini)
   const [loading, setLoading] = useState(true);
@@ -3643,11 +3699,87 @@ function LectureSummary({
   const currentText = version === "original" ? summaryData?.explanation : summaryData?.simplified;
 
   return (
-    <div className="summary-page page-enter px-4 sm:px-6 md:px-8 py-2 md:py-4">
+    <div
+      className="summary-page page-enter px-4 sm:px-6 md:px-8 py-2 md:py-4 relative"
+      onMouseUp={checkSelection}
+      onTouchEnd={checkSelection}
+    >
       <TopBar subtitle={`${lecture.subject} · ${lecture.date}`} title={t.summaryTitle} />
       <div className="mb-4">
         <BackButton label={t.back} onClick={onBack} />
       </div>
+
+      {/* 3-Language Lecture Translation Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4 rounded-2xl border border-line bg-card px-4 py-2.5 shadow-sm">
+        <div className="flex items-center gap-2">
+          <Icon name="sparkles" className="size-4 text-accent-bright" />
+          <span className="text-xs font-semibold text-copy">
+            {lang === "Kazakh" ? "Дәрісті аудару (3 тіл):" : lang === "English" ? "Translate lecture (3 languages):" : "Перевести лекцию (3 языка):"}
+          </span>
+        </div>
+        <div className="inline-flex rounded-xl border border-line bg-elevated p-1 shadow-sm">
+          {(["Kazakh", "Russian", "English"] as Language[]).map((l) => (
+            <button
+              key={l}
+              onClick={() => {
+                if (language !== l) {
+                  setLanguage(l);
+                  onLectureUpdate({ outputLanguage: l });
+                }
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                language === l
+                  ? "bg-accent text-white shadow-glow"
+                  : "text-copy-muted hover:text-white"
+              }`}
+            >
+              <span>{l === "Kazakh" ? "🇰🇿 Қазақша" : l === "Russian" ? "🇷🇺 Русский" : "🇬🇧 English"}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {selectedToolbar && (
+        <div
+          style={{ top: `${selectedToolbar.top}px`, left: `${selectedToolbar.left}px` }}
+          className="fixed z-50 flex items-center gap-1.5 rounded-full border border-line bg-card/95 backdrop-blur-md px-2 py-1.5 shadow-2xl animate-fade-in"
+          onMouseDown={(e) => e.preventDefault()}
+        >
+          <button
+            onClick={() => {
+              const query =
+                lang === "Kazakh"
+                  ? `«${lecture.title}» лекциясынан мына үзіндіні қарапайым тілмен түсіндіріп берші:\n"${selectedToolbar.text}"`
+                  : lang === "English"
+                    ? `Please explain this excerpt from "${lecture.title}":\n"${selectedToolbar.text}"`
+                    : `Объясни подробнее этот фрагмент из лекции «${lecture.title}»:\n«${selectedToolbar.text}»`;
+              sessionStorage.setItem("leasy_teacher_prompt", query);
+              setSelectedToolbar(null);
+              navigate("teacher");
+            }}
+            className="flex items-center gap-1.5 rounded-full bg-accent px-3 py-1.5 text-xs font-bold text-white shadow-glow hover:bg-accent/90"
+            title={lang === "Kazakh" ? "AI Оқытушыдан сұрау" : lang === "English" ? "Ask AI Teacher" : "Спросить у AI"}
+          >
+            <Icon name="sparkles" className="size-3.5" />
+            <span>{lang === "Kazakh" ? "AI Оқытушыға" : lang === "English" ? "Ask AI" : "Спросить у AI"}</span>
+          </button>
+          <button
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(selectedToolbar.text);
+                setCopiedSnippet(true);
+                setTimeout(() => setCopiedSnippet(false), 2000);
+                setSelectedToolbar(null);
+              } catch {}
+            }}
+            className="flex items-center gap-1 rounded-full border border-line bg-elevated px-2.5 py-1.5 text-xs font-semibold text-copy-muted hover:text-white"
+            title={lang === "Kazakh" ? "Көшіріп алу" : lang === "English" ? "Copy" : "Копировать"}
+          >
+            <Icon name="document" className="size-3.5" />
+            <span>{copiedSnippet ? "✓" : (lang === "Kazakh" ? "Көшіру" : lang === "English" ? "Copy" : "Копировать")}</span>
+          </button>
+        </div>
+      )}
 
       <div className="lg:grid lg:grid-cols-12 lg:gap-6 items-start">
         {/* Left Column: AI Explanation & Actions (7 cols on desktop) */}
@@ -3838,16 +3970,63 @@ function Notes({
   lecture,
   openTests,
   onBack,
+  navigate,
 }: {
   lecture: Lecture;
   openTests: (mode: "quiz" | "cards") => void;
   onBack: () => void;
+  navigate?: (screen: Screen) => void;
 }) {
   const { t, lang } = useI18n();
   const { termsList, definitions } = parseVocabulary(lecture.summary?.terms);
   const [selectedTerm, setSelectedTerm] = useState(termsList[0] ?? "Главная идея");
   const [actionStatus, setActionStatus] = useState("");
   const [downloading, setDownloading] = useState(false);
+  const [selectedToolbar, setSelectedToolbar] = useState<{
+    text: string;
+    top: number;
+    left: number;
+  } | null>(null);
+  const [copiedSnippet, setCopiedSnippet] = useState(false);
+
+  const checkSelection = () => {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed) {
+      setSelectedToolbar(null);
+      return;
+    }
+    const text = sel.toString().trim();
+    if (text.length < 3) {
+      setSelectedToolbar(null);
+      return;
+    }
+    try {
+      const range = sel.getRangeAt(0);
+      const rect = range.getBoundingClientRect();
+      if (rect.width === 0 && rect.height === 0) {
+        setSelectedToolbar(null);
+        return;
+      }
+      const top = Math.max(12, rect.top - 46);
+      const left = Math.max(16, Math.min(window.innerWidth - 240, rect.left + rect.width / 2 - 110));
+      setSelectedToolbar({ text, top, left });
+    } catch {
+      setSelectedToolbar(null);
+    }
+  };
+
+  useEffect(() => {
+    const onSelectionChange = () => {
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed) {
+        setSelectedToolbar(null);
+      }
+    };
+    document.addEventListener("selectionchange", onSelectionChange);
+    return () => {
+      document.removeEventListener("selectionchange", onSelectionChange);
+    };
+  }, []);
 
   useEffect(() => {
     if (termsList.length > 0 && !definitions[selectedTerm]) {
@@ -3895,7 +4074,52 @@ function Notes({
       : ["Ключевые пункты конспекта появятся здесь после генерации в разделе Summary."];
 
   return (
-    <div className="notes-page page-enter px-4 sm:px-6 md:px-8 py-2 md:py-4">
+    <div
+      className="notes-page page-enter px-4 sm:px-6 md:px-8 py-2 md:py-4 relative"
+      onMouseUp={checkSelection}
+      onTouchEnd={checkSelection}
+    >
+      {selectedToolbar && (
+        <div
+          style={{ top: `${selectedToolbar.top}px`, left: `${selectedToolbar.left}px` }}
+          className="fixed z-50 flex items-center gap-1.5 rounded-full border border-line bg-card/95 backdrop-blur-md px-2 py-1.5 shadow-2xl animate-fade-in"
+          onMouseDown={(e) => e.preventDefault()}
+        >
+          <button
+            onClick={() => {
+              const query =
+                lang === "Kazakh"
+                  ? `«${lecture.title}» лекциясынан мына үзіндіні қарапайым тілмен түсіндіріп берші:\n"${selectedToolbar.text}"`
+                  : lang === "English"
+                    ? `Please explain this excerpt from "${lecture.title}":\n"${selectedToolbar.text}"`
+                    : `Объясни подробнее этот фрагмент из лекции «${lecture.title}»:\n«${selectedToolbar.text}»`;
+              sessionStorage.setItem("leasy_teacher_prompt", query);
+              setSelectedToolbar(null);
+              if (navigate) navigate("teacher");
+            }}
+            className="flex items-center gap-1.5 rounded-full bg-accent px-3 py-1.5 text-xs font-bold text-white shadow-glow hover:bg-accent/90"
+            title={lang === "Kazakh" ? "AI Оқытушыдан сұрау" : lang === "English" ? "Ask AI Teacher" : "Спросить у AI"}
+          >
+            <Icon name="sparkles" className="size-3.5" />
+            <span>{lang === "Kazakh" ? "AI Оқытушыға" : lang === "English" ? "Ask AI" : "Спросить у AI"}</span>
+          </button>
+          <button
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(selectedToolbar.text);
+                setCopiedSnippet(true);
+                setTimeout(() => setCopiedSnippet(false), 2000);
+                setSelectedToolbar(null);
+              } catch {}
+            }}
+            className="flex items-center gap-1 rounded-full border border-line bg-elevated px-2.5 py-1.5 text-xs font-semibold text-copy-muted hover:text-white"
+            title={lang === "Kazakh" ? "Көшіріп алу" : lang === "English" ? "Copy" : "Копировать"}
+          >
+            <Icon name="document" className="size-3.5" />
+            <span>{copiedSnippet ? "✓" : (lang === "Kazakh" ? "Көшіру" : lang === "English" ? "Copy" : "Копировать")}</span>
+          </button>
+        </div>
+      )}
       <TopBar
         subtitle={`${lecture.subject} · ${lecture.date}`}
         title={lecture.title}
@@ -4063,28 +4287,32 @@ function Tests({
     setStudyError("");
     try {
       let transcript = (lecture.transcript ?? "").trim();
-      if (transcript.length < 50 && lecture.summary) {
-        transcript = [
-          `Lecture Title: ${lecture.title}. Subject: ${lecture.subject}.`,
+      let contextPayload = transcript;
+      if (lecture.summary) {
+        contextPayload += [
+          "\n\n--- STRUCTURED LECTURE CONTEXT & GLOSSARY ---",
+          `Title: ${lecture.title}. Subject: ${lecture.subject}.`,
           `Overview: ${lecture.summary.explanation}`,
           `Simplified: ${lecture.summary.simplified}`,
           lecture.summary.keyPoints?.length ? `Key Points:\n- ${lecture.summary.keyPoints.join("\n- ")}` : "",
-          lecture.summary.terms?.length ? `Core Concepts:\n- ${lecture.summary.terms.join("\n- ")}` : "",
+          lecture.summary.terms?.length ? `Core Concepts & Terms:\n- ${lecture.summary.terms.join("\n- ")}` : "",
           lecture.summary.example ? `Practical Example: ${lecture.summary.example}` : "",
         ]
           .filter(Boolean)
           .join("\n\n");
-      } else if (transcript.length < 20) {
+      }
+
+      if (contextPayload.length < 20) {
         const cleanSubj =
           lecture.subject && lecture.subject !== "General Subject" && lecture.subject !== "Общий предмет"
             ? lecture.subject
             : lecture.title || "Academic Concepts";
-        transcript = `Academic lecture session on "${lecture.title}" in ${cleanSubj}. The professor introduces core definitions, principles, terminology, and practical applications for ${lecture.title}.`;
+        contextPayload = `Academic lecture session on "${lecture.title}" in ${cleanSubj}. The professor introduces core definitions, principles, terminology, and practical applications for ${lecture.title}.`;
       }
 
       try {
         const response = await authFetch("/api/study", {
-          transcript,
+          transcript: contextPayload,
           title: lecture.title,
           language: lecture.outputLanguage,
         });
@@ -4651,6 +4879,20 @@ function Teacher({ lecture, onBack }: { lecture: Lecture; onBack: () => void }) 
   const [voiceTranscript, setVoiceTranscript] = useState("");
   const [callSeconds, setCallSeconds] = useState(0);
   const recognitionRef = useRef<any>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, replying]);
+
+  useEffect(() => {
+    const pending = sessionStorage.getItem("leasy_teacher_prompt");
+    if (pending) {
+      sessionStorage.removeItem("leasy_teacher_prompt");
+      setVoice(false);
+      void sendMessage(pending);
+    }
+  }, []);
 
   useEffect(() => {
     if (!voiceCallActive) {
@@ -4884,7 +5126,7 @@ function Teacher({ lecture, onBack }: { lecture: Lecture; onBack: () => void }) 
         </div>
       ) : (
         <>
-          <div className="flex-1 space-y-5 py-6">
+          <div className="flex-1 space-y-5 py-6 pb-48">
             <div>
               <div className="mb-2 text-mini font-bold uppercase tracking-wider text-copy-dim">
                 {lang === "Kazakh" ? "Ұсынылатын сұрақтар" : lang === "English" ? "Suggested prompts" : "Популярные вопросы"}
@@ -4925,9 +5167,10 @@ function Teacher({ lecture, onBack }: { lecture: Lecture; onBack: () => void }) 
                 {t.teacherTitle}…
               </div>
             )}
+            <div ref={messagesEndRef} className="h-6" />
           </div>
 
-          <div className="sticky bottom-nav-offset mt-auto pb-3">
+          <div className="sticky bottom-16 sm:bottom-4 z-20 mt-auto pb-2 pt-2 bg-app/80 backdrop-blur-md rounded-2xl">
             <div className="flex items-center gap-2 rounded-2xl border border-line bg-card p-2 shadow-input">
               <Button
                 aria-label={listening ? "Stop voice input" : "Start voice input"}
@@ -4940,7 +5183,7 @@ function Teacher({ lecture, onBack }: { lecture: Lecture; onBack: () => void }) 
                 <Icon name={listening ? "stop" : "mic"} className="size-4" />
               </Button>
               <Input
-                className="min-w-0 flex-1 bg-transparent px-2 text-sm text-white outline-none placeholder:text-copy-dim"
+                className="min-w-0 flex-1 bg-transparent px-2 text-sm text-copy outline-none placeholder:text-copy-dim"
                 onChange={(event) => setMessage(event.target.value)}
                 onKeyDown={(event) => event.key === "Enter" && submit()}
                 placeholder={listening ? "Listening…" : t.askAnything}
@@ -5480,7 +5723,7 @@ export default function App({
           />
         )}
         {screen === "notes" && (
-          <Notes lecture={selectedLecture} onBack={() => navigate("summary")} openTests={openTests} />
+          <Notes lecture={selectedLecture} onBack={() => navigate("summary")} openTests={openTests} navigate={navigate} />
         )}
         {screen === "tests" && (
           <Tests
