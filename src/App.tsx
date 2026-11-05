@@ -2171,10 +2171,13 @@ function Recording({
   }) => void;
   onUploadReady: (sourceFile: string, file?: File) => void;
 }) {
+  const { t, lang } = useI18n();
   const [recProfile] = useState(() => getInitialProfile());
   const [recordingState, setRecordingState] = useState<RecorderState>("idle");
   const [elapsed, setElapsed] = useState(0);
-  const [sourceLanguage, setSourceLanguage] = useState("ru-RU");
+  const [sourceLanguage, setSourceLanguage] = useState(() =>
+    lang === "Kazakh" ? "kk-KZ" : lang === "English" ? "en-US" : "ru-RU"
+  );
   const [outputLanguage, setOutputLanguage] = useState(() =>
     recProfile.defaultLang === "English" ? "en-US" : recProfile.defaultLang === "Kazakh" ? "kk-KZ" : "ru-RU",
   );
@@ -2264,10 +2267,17 @@ function Recording({
     };
   }, []);
 
+  const runningRef = useRef(running);
+  runningRef.current = running;
+  const enabledRef = useRef(liveTranscriptEnabled);
+  enabledRef.current = liveTranscriptEnabled;
+
   useEffect(() => {
     if (!running || !liveTranscriptEnabled) {
-      recognitionRef.current?.stop();
-      recognitionRef.current = null;
+      if (recognitionRef.current) {
+        try { recognitionRef.current.stop(); } catch {}
+        recognitionRef.current = null;
+      }
       setInterimTranscript("");
       return;
     }
@@ -2288,6 +2298,7 @@ function Recording({
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = sourceLanguage;
+
     recognition.onresult = (event) => {
       let finalText = "";
       let interimText = "";
@@ -2300,36 +2311,52 @@ function Recording({
 
       if (finalText) setTranscript((current) => `${current}${finalText}`);
       setInterimTranscript(interimText);
-      setSpeechStatus("Listening");
+      setSpeechStatus(lang === "Kazakh" ? "Тыңдауда…" : lang === "English" ? "Listening…" : "Слушаю…");
     };
-    recognition.onerror = () => {
-      active = false;
-      setSpeechStatus("Microphone access needed");
-    };
-    recognition.onend = () => {
-      if (!active) return;
-      try {
-        recognition.start();
-      } catch {
-        setSpeechStatus("Tap resume to continue");
+
+    recognition.onerror = (event: any) => {
+      const err = event?.error;
+      console.warn("Live transcript recognition event:", err);
+      // "no-speech", "network", or "aborted" are normal pause/network reconnect events — DO NOT kill recognition!
+      if (err === "no-speech" || err === "network" || err === "aborted") {
+        return;
+      }
+      if (err === "not-allowed" || err === "service-not-allowed") {
+        active = false;
+        setSpeechStatus(lang === "Kazakh" ? "Микрофонға рұқсат берілмеді" : "Доступ к микрофону заблокирован");
       }
     };
 
+    recognition.onend = () => {
+      if (!active || !runningRef.current || !enabledRef.current) return;
+      // Auto-restart continuously after silence/pause
+      window.setTimeout(() => {
+        if (active && runningRef.current && enabledRef.current) {
+          try {
+            recognition.start();
+            setSpeechStatus(lang === "Kazakh" ? "Тыңдауда…" : lang === "English" ? "Listening…" : "Слушаю…");
+          } catch {
+            // Already started
+          }
+        }
+      }, 150);
+    };
+
     recognitionRef.current = recognition;
-    setSpeechStatus("Starting microphone…");
+    setSpeechStatus(lang === "Kazakh" ? "Тыңдауда…" : lang === "English" ? "Listening…" : "Слушаю…");
     try {
       recognition.start();
     } catch {
-      setSpeechStatus("Microphone access needed");
+      // Ignored
     }
 
     return () => {
       active = false;
       recognition.onend = null;
-      recognition.stop();
+      try { recognition.stop(); } catch {}
       recognitionRef.current = null;
     };
-  }, [liveTranscriptEnabled, running, sourceLanguage]);
+  }, [liveTranscriptEnabled, running, sourceLanguage, lang]);
 
   const time = [Math.floor(elapsed / 3600), Math.floor((elapsed % 3600) / 60), elapsed % 60]
     .map((value) => String(value).padStart(2, "0"))
@@ -2869,16 +2896,37 @@ function Recording({
       </section>
 
       <section className="mt-4 rounded-2xl border border-line bg-card p-4">
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <span className={`size-2 rounded-full ${running ? "animate-pulse bg-red" : "bg-copy-dim"}`} />
+            <span className={`size-2 rounded-full ${running && liveTranscriptEnabled ? "animate-pulse bg-red" : "bg-copy-dim"}`} />
             <Heading level={2} className="text-sm font-bold text-white">
               Live Transcript
             </Heading>
           </div>
-          <span className="text-mini font-semibold uppercase tracking-wider text-copy-dim">
-            {liveTranscriptEnabled ? speechStatus : "Optional"}
-          </span>
+          <div className="flex items-center gap-2">
+            {/* Quick Language switcher for ASR */}
+            <div className="inline-flex rounded-lg border border-line bg-elevated p-0.5 text-mini">
+              {[
+                { id: "kk-KZ", label: "🇰🇿 Қаз" },
+                { id: "ru-RU", label: "🇷🇺 Рус" },
+                { id: "en-US", label: "🇬🇧 Eng" },
+              ].map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => setSourceLanguage(item.id)}
+                  className={`rounded-md px-2 py-0.5 font-bold transition ${
+                    sourceLanguage === item.id ? "bg-accent text-white shadow" : "text-copy-muted hover:text-white"
+                  }`}
+                  title={item.label}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+            <span className="text-mini font-semibold uppercase tracking-wider text-copy-dim">
+              {liveTranscriptEnabled ? speechStatus : "Optional"}
+            </span>
+          </div>
         </div>
         {!recordedUrl && (
           <Button
@@ -4977,8 +5025,31 @@ function Teacher({ lecture, onBack }: { lecture: Lecture; onBack: () => void }) 
   const [voiceCallActive, setVoiceCallActive] = useState(false);
   const [voiceTranscript, setVoiceTranscript] = useState("");
   const [callSeconds, setCallSeconds] = useState(0);
+  const [isAiSpeaking, setIsAiSpeaking] = useState(false);
+
+  const voiceCallActiveRef = useRef(false);
+  const isAiSpeakingRef = useRef(false);
   const recognitionRef = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const cancelAllAudio = () => {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+    isAiSpeakingRef.current = false;
+    setIsAiSpeaking(false);
+  };
+
+  const stopVoiceCall = () => {
+    setVoiceCallActive(false);
+    voiceCallActiveRef.current = false;
+    cancelAllAudio();
+    if (recognitionRef.current) {
+      try { recognitionRef.current.abort(); } catch {}
+      recognitionRef.current = null;
+    }
+    setVoiceTranscript("");
+  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -4994,39 +5065,74 @@ function Teacher({ lecture, onBack }: { lecture: Lecture; onBack: () => void }) 
   }, []);
 
   useEffect(() => {
+    voiceCallActiveRef.current = voiceCallActive;
+
     if (!voiceCallActive) {
-      if (recognitionRef.current) {
-        try { recognitionRef.current.stop(); } catch {}
-        recognitionRef.current = null;
-      }
+      stopVoiceCall();
       return;
     }
+
     const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRec) {
-      setVoiceTranscript("Распознавание речи не поддерживается в этом браузере. Используйте текстовый чат.");
+      setVoiceTranscript(
+        lang === "Kazakh"
+          ? "Бұл браузерде дауысты тану қолжетімсіз. Мәтіндік чатты пайдаланыңыз."
+          : "Распознавание речи не поддерживается в этом браузере. Используйте текстовый чат."
+      );
       return;
     }
+
     const rec = new SpeechRec();
     rec.continuous = true;
     rec.interimResults = true;
-    rec.lang = lecture.outputLanguage === "Russian" ? "ru-RU" : lecture.outputLanguage === "Kazakh" ? "kk-KZ" : "en-US";
+    rec.lang =
+      lecture.outputLanguage === "Russian"
+        ? "ru-RU"
+        : lecture.outputLanguage === "Kazakh"
+          ? "kk-KZ"
+          : "en-US";
+
     rec.onresult = (event: any) => {
+      // If AI is speaking through speakers, ignore mic to prevent echo feedback loop!
+      if (isAiSpeakingRef.current) return;
+
       let interim = "";
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const text = event.results[i][0].transcript;
         if (event.results[i].isFinal) {
-          setVoiceTranscript(text);
-          sendMessage(text);
+          const trimmed = text.trim();
+          if (trimmed.length > 1) {
+            setVoiceTranscript(trimmed);
+            void sendMessage(trimmed);
+          }
         } else {
           interim += text;
         }
       }
       if (interim) setVoiceTranscript(interim);
     };
+
+    rec.onerror = (e: any) => {
+      console.warn("Teacher voice rec error:", e?.error);
+    };
+
+    rec.onend = () => {
+      // Keep listening as long as call is active and AI is not speaking
+      if (voiceCallActiveRef.current && !isAiSpeakingRef.current) {
+        window.setTimeout(() => {
+          if (voiceCallActiveRef.current && !isAiSpeakingRef.current) {
+            try { rec.start(); } catch {}
+          }
+        }, 150);
+      }
+    };
+
     try { rec.start(); } catch {}
     recognitionRef.current = rec;
+
     return () => {
-      try { rec.stop(); } catch {}
+      try { rec.abort(); } catch {}
+      cancelAllAudio();
     };
   }, [voiceCallActive, lecture.outputLanguage]);
 
@@ -5049,15 +5155,53 @@ function Teacher({ lecture, onBack }: { lecture: Lecture; onBack: () => void }) 
       if (!response.ok) throw new Error(data.error ?? `Request failed (${response.status})`);
       const replyText = String(data.answer);
       setMessages((current) => [...current, { role: "assistant", text: replyText }]);
-      if (voiceCallActive && getInitialProfile().voiceTts && typeof window !== "undefined" && "speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-        const utter = new SpeechSynthesisUtterance(replyText.slice(0, 300));
-        utter.lang =
+
+      if (
+        voiceCallActiveRef.current &&
+        typeof window !== "undefined" &&
+        "speechSynthesis" in window
+      ) {
+        cancelAllAudio();
+
+        if (recognitionRef.current) {
+          try { recognitionRef.current.abort(); } catch {}
+        }
+
+        const cleanReply = replyText.replace(/[*_#`]/g, "").slice(0, 350);
+        const utter = new SpeechSynthesisUtterance(cleanReply);
+        const targetLang =
           lecture.outputLanguage === "Russian"
             ? "ru-RU"
             : lecture.outputLanguage === "Kazakh"
               ? "kk-KZ"
               : "en-US";
+        utter.lang = targetLang;
+        utter.rate = 1.05;
+
+        try {
+          const voices = window.speechSynthesis.getVoices();
+          const match = voices.find((v) =>
+            v.lang.toLowerCase().startsWith(targetLang.slice(0, 2).toLowerCase())
+          );
+          if (match) utter.voice = match;
+        } catch {}
+
+        isAiSpeakingRef.current = true;
+        setIsAiSpeaking(true);
+
+        const onFinishedSpeaking = () => {
+          isAiSpeakingRef.current = false;
+          setIsAiSpeaking(false);
+          if (voiceCallActiveRef.current) {
+            try {
+              recognitionRef.current?.start();
+            } catch {}
+          }
+        };
+
+        utter.onend = onFinishedSpeaking;
+        utter.onerror = onFinishedSpeaking;
+
         window.speechSynthesis.speak(utter);
       }
     } catch (err) {
@@ -5160,7 +5304,10 @@ function Teacher({ lecture, onBack }: { lecture: Lecture; onBack: () => void }) 
             <Button
               aria-label="Back to lecture summary"
               className="grid size-10 place-items-center rounded-full border border-line bg-card text-copy-muted transition hover:text-white"
-              onClick={onBack}
+              onClick={() => {
+                stopVoiceCall();
+                onBack();
+              }}
             >
               <Icon name="arrow" className="size-4 rotate-180" />
             </Button>
@@ -5176,8 +5323,8 @@ function Teacher({ lecture, onBack }: { lecture: Lecture; onBack: () => void }) 
         <Button
           className={`rounded-lg py-3 text-xs font-bold transition flex items-center justify-center gap-2 ${!voice ? "bg-accent text-white shadow-glow" : "text-copy-muted hover:text-white"}`}
           onClick={() => {
+            stopVoiceCall();
             setVoice(false);
-            setVoiceCallActive(false);
           }}
         >
           <Icon name="message" className="size-4" />
@@ -5194,13 +5341,17 @@ function Teacher({ lecture, onBack }: { lecture: Lecture; onBack: () => void }) 
 
       {voice ? (
         <div className="flex flex-1 flex-col items-center justify-center py-12 text-center">
-          <div className={`${voiceCallActive ? "voice-rings" : ""} grid size-40 place-items-center rounded-full bg-purple/10`}>
+          <div className={`${voiceCallActive ? (isAiSpeaking ? "voice-rings animate-pulse" : "voice-rings") : ""} grid size-40 place-items-center rounded-full bg-purple/10`}>
             <div className="grid size-24 place-items-center rounded-full bg-gradient-to-br from-accent to-purple text-white shadow-purple">
-              <Icon name={voiceCallActive ? "wave" : "brain"} className="size-9" />
+              <Icon name={voiceCallActive ? (isAiSpeaking ? "wave" : "mic") : "brain"} className="size-9" />
             </div>
           </div>
           <Heading level={2} className="mt-8 text-xl font-bold text-white">
-            {voiceCallActive ? (lang === "Kazakh" ? "AI Оқытушы тыңдауда…" : "AI Teacher is listening") : (lang === "Kazakh" ? "Сұрақ қоюға дайын" : "Ready when you are")}
+            {voiceCallActive
+              ? isAiSpeaking
+                ? (lang === "Kazakh" ? "AI Оқытушы сөйлеуде…" : lang === "English" ? "AI Teacher is speaking…" : "AI Преподаватель говорит…")
+                : (lang === "Kazakh" ? "AI Оқытушы тыңдауда…" : lang === "English" ? "AI Teacher is listening…" : "AI Преподаватель слушает вас…")
+              : (lang === "Kazakh" ? "Сұрақ қоюға дайын" : lang === "English" ? "Ready when you are" : "Готов к разговору")}
           </Heading>
           <p className="mt-2 max-w-xs text-sm leading-6 text-copy-muted">
             {voiceCallActive
@@ -5209,18 +5360,43 @@ function Teacher({ lecture, onBack }: { lecture: Lecture; onBack: () => void }) 
           </p>
           {voiceCallActive && (
             <div className="mt-5 w-full rounded-2xl border border-line bg-card p-4 text-left text-xs leading-5 text-copy-muted">
-              <span className="font-bold text-purple-light">Голосовой режим</span>
-              <p className="mt-1 text-white">{voiceTranscript || "Говорите в микрофон... Преподаватель слушает ваш вопрос."}</p>
+              <span className="font-bold text-purple-light">
+                {isAiSpeaking ? (lang === "Kazakh" ? "AI жауап беруде" : "AI отвечает") : (lang === "Kazakh" ? "Дауыстық режим" : "Голосовой режим")}
+              </span>
+              <p className="mt-1 text-white">
+                {isAiSpeaking
+                  ? (lang === "Kazakh" ? "Оқытушы жауап беріп жатыр... Тыңдаңыз немесе тоқтатыңыз." : "Преподаватель объясняет материал... Слушайте ответ.")
+                  : (voiceTranscript || (lang === "Kazakh" ? "Микрофонға сөйлеңіз... Оқытушы сұрағыңызды тыңдауда." : "Говорите в микрофон... Преподаватель слушает ваш вопрос."))}
+              </p>
             </div>
           )}
+
+          {voiceCallActive && isAiSpeaking && (
+            <Button
+              className="mt-4 flex items-center gap-2 rounded-full border border-red/40 bg-red/15 px-4 py-2 text-xs font-bold text-red hover:bg-red/25 transition shadow-sm"
+              onClick={cancelAllAudio}
+            >
+              <Icon name="stop" className="size-3.5" />
+              <span>{lang === "Kazakh" ? "Сөйлеуді тоқтату" : lang === "English" ? "Stop speaking" : "Остановить речь"}</span>
+            </Button>
+          )}
+
           <Button
-            className={`mt-7 flex items-center gap-2 rounded-full px-6 py-4 text-sm font-bold text-white ${
-              voiceCallActive ? "bg-red shadow-red" : "bg-purple shadow-purple"
+            className={`mt-6 flex items-center gap-2 rounded-full px-6 py-4 text-sm font-bold text-white transition ${
+              voiceCallActive ? "bg-red shadow-red hover:opacity-90" : "bg-purple shadow-purple hover:opacity-90"
             }`}
-            onClick={() => setVoiceCallActive((value) => !value)}
+            onClick={() => {
+              if (voiceCallActive) {
+                stopVoiceCall();
+              } else {
+                setVoiceCallActive(true);
+              }
+            }}
           >
             <Icon name={voiceCallActive ? "stop" : "mic"} className="size-5" />
-            {voiceCallActive ? (lang === "Kazakh" ? "Қоңырауды аяқтау" : "Завершить звонок") : (lang === "Kazakh" ? "Дауыспен сөйлесу" : "Начать звонок")}
+            {voiceCallActive
+              ? (lang === "Kazakh" ? "Қоңырауды аяқтау" : "Завершить звонок")
+              : (lang === "Kazakh" ? "Дауыспен сөйлесу" : "Начать звонок")}
           </Button>
         </div>
       ) : (
