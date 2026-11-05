@@ -844,6 +844,24 @@ function Home({
   };
 
   useEffect(() => {
+    const handleOpenProfile = () => {
+      setProfileFeedback("");
+      setProfileError("");
+      refreshLibraryStats();
+      setPanel("profile");
+    };
+    const handleOpenSearch = () => {
+      setPanel("search");
+    };
+    window.addEventListener("leasy_open_profile", handleOpenProfile);
+    window.addEventListener("leasy_open_search", handleOpenSearch);
+    return () => {
+      window.removeEventListener("leasy_open_profile", handleOpenProfile);
+      window.removeEventListener("leasy_open_search", handleOpenSearch);
+    };
+  }, []);
+
+  useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       const u = data.user;
       if (!u) return;
@@ -1161,6 +1179,23 @@ function Home({
           >
             <Icon name="mic" className="size-4" />
             <span>{t.recordLecture}</span>
+          </Button>
+          <Button
+            aria-label="Open profile menu"
+            className={`relative grid size-10 place-items-center overflow-hidden rounded-full bg-gradient-to-br ${avatarGradient} text-xs font-bold text-white ring-2 ring-card shadow-sm hover:scale-105 transition`}
+            onClick={() => {
+              setProfileFeedback("");
+              setProfileError("");
+              refreshLibraryStats();
+              setPanel("profile");
+            }}
+            title={userName ? `${userName} - Профиль` : "Профиль"}
+          >
+            {avatarUrl ? (
+              <img alt={userName || "Avatar"} className="size-full object-cover" src={avatarUrl} />
+            ) : (
+              initials
+            )}
           </Button>
         </div>
       </div>
@@ -5945,6 +5980,16 @@ export default function App({
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const appProfile = getInitialProfile();
+  const avatarGradient = avatarThemes[appProfile.avatarTheme] ?? avatarThemes.aurora;
+  const initials = (appProfile.userName || "U")
+    .trim()
+    .split(/\s+/)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
   return (
     <div className="min-h-screen w-full bg-app flex flex-col text-copy transition-colors duration-200">
       <DesktopNavbar
@@ -5952,7 +5997,26 @@ export default function App({
         onNavigate={navigate}
         onOpenAuth={onOpenAuth}
         isGuest={isGuest}
-        userName={selectedLecture?.professor}
+        userName={appProfile.userName || "Студент"}
+        avatarUrl={appProfile.avatarUrl}
+        avatarGradient={avatarGradient}
+        initials={initials}
+        onOpenProfile={() => {
+          if (screen !== "home") {
+            navigate("home");
+          }
+          window.setTimeout(() => {
+            window.dispatchEvent(new CustomEvent("leasy_open_profile"));
+          }, 80);
+        }}
+        onOpenSearch={() => {
+          if (screen !== "home") {
+            navigate("home");
+          }
+          window.setTimeout(() => {
+            window.dispatchEvent(new CustomEvent("leasy_open_search"));
+          }, 80);
+        }}
       />
       <main className="relative flex-1 w-full mx-auto max-w-md md:max-w-none px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 pb-page md:pb-12 overflow-x-hidden">
         {screen === "home" && (
