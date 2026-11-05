@@ -46,6 +46,10 @@ ${transcript}
     responseSchema: {
       type: "OBJECT",
       properties: {
+        topicTitle: {
+          type: "STRING",
+          description: "A concise, specific topic title of this lecture (3-6 words) in the output language based strictly on what was actually discussed.",
+        },
         explanation: {
           type: "STRING",
           description:
@@ -71,9 +75,9 @@ ${transcript}
           description: "A practical example or case study from or consistent with the lecture.",
         },
       },
-      required: ["explanation", "simplified", "keyPoints", "terms", "example"],
+      required: ["topicTitle", "explanation", "simplified", "keyPoints", "terms", "example"],
     },
-  });
+  }, { timeoutMs: 45000 });
   if (result.error) {
     return json({ error: result.error, debug: result.debug || result.lastError }, result.status ?? 502);
   }

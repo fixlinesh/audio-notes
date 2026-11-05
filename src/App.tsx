@@ -21,6 +21,7 @@ import {
   type RecordingRow,
 } from "./lib/supabase";
 import type { SummaryData } from "./summarize";
+import { useTheme } from "./theme";
 import * as pdfjsLib from 'pdfjs-dist';
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
@@ -37,6 +38,19 @@ async function extractTextFromPDF(file: File): Promise<string> {
   }
 
   return fullText;
+}
+
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const res = (reader.result as string) || "";
+      const base64 = res.includes(",") ? res.split(",")[1] : res;
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
 }
 
 type Screen =
@@ -84,6 +98,7 @@ type IconName =
   | "download"
   | "home"
   | "mic"
+  | "moon"
   | "more"
   | "pause"
   | "play"
@@ -93,6 +108,7 @@ type IconName =
   | "sparkles"
   | "speaker"
   | "stop"
+  | "sun"
   | "test"
   | "upload"
   | "wave";
@@ -197,6 +213,13 @@ const paths: Record<IconName, ReactNode> = {
   ),
   check: <path d="m5 12 4 4L19 6" />,
   play: <path d="m8 5 11 7-11 7Z" />,
+  sun: (
+    <>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+    </>
+  ),
+  moon: <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />,
 };
 
 function Icon({ name, className = "size-5" }: { name: IconName; className?: string }) {
@@ -256,22 +279,88 @@ function Heading({
   return createElement(`h${level}`, { className }, children);
 }
 
+export function ThemeToggle({
+  className = "",
+  compact = false,
+}: {
+  className?: string;
+  compact?: boolean;
+}) {
+  const { isDark, toggleTheme, setTheme } = useTheme();
+
+  if (compact) {
+    return (
+      <Button
+        aria-label={isDark ? "Переключить на светлую тему" : "Переключить на тёмную тему"}
+        title={isDark ? "Текущая: Тёмная. Кликните для светлой" : "Текущая: Светлая. Кликните для тёмной"}
+        className={`grid size-10 place-items-center rounded-full border border-line bg-card text-copy-muted transition hover:border-accent hover:text-accent-bright ${className}`}
+        onClick={toggleTheme}
+        type="button"
+      >
+        <Icon name={isDark ? "sun" : "moon"} className="size-4 text-accent-bright" />
+      </Button>
+    );
+  }
+
+  return (
+    <div
+      role="radiogroup"
+      aria-label="Тема оформления"
+      className={`inline-flex items-center gap-1 rounded-full border border-line bg-card p-1 shadow-sm transition ${className}`}
+    >
+      <button
+        type="button"
+        role="radio"
+        aria-checked={!isDark}
+        onClick={() => setTheme("light")}
+        className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-mini font-bold transition ${
+          !isDark
+            ? "bg-accent text-white shadow-glow"
+            : "text-copy-muted hover:text-white"
+        }`}
+      >
+        <Icon name="sun" className="size-3.5" />
+        <span>Светлая</span>
+      </button>
+      <button
+        type="button"
+        role="radio"
+        aria-checked={isDark}
+        onClick={() => setTheme("dark")}
+        className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-mini font-bold transition ${
+          isDark
+            ? "bg-accent text-white shadow-glow"
+            : "text-copy-muted hover:text-white"
+        }`}
+      >
+        <Icon name="moon" className="size-3.5" />
+        <span>Тёмная</span>
+      </button>
+    </div>
+  );
+}
+
 function TopBar({
   title,
   subtitle,
   action,
+  showThemeToggle = true,
 }: {
   title: string;
   subtitle?: string;
   action?: ReactNode;
+  showThemeToggle?: boolean;
 }) {
   return (
     <header className="flex items-start justify-between gap-4 pb-6 pt-safe">
-      <div>
-        {subtitle && <p className="mb-1 text-xs font-medium text-copy-muted">{subtitle}</p>}
-        <Heading className="text-2xl font-bold tracking-tight text-white">{title}</Heading>
+      <div className="min-w-0 flex-1">
+        {subtitle && <p className="mb-1 truncate text-xs font-medium text-copy-muted">{subtitle}</p>}
+        <Heading className="truncate text-2xl font-bold tracking-tight text-white">{title}</Heading>
       </div>
-      {action}
+      <div className="flex shrink-0 items-center gap-2">
+        {showThemeToggle && <ThemeToggle compact />}
+        {action}
+      </div>
     </header>
   );
 }
@@ -293,6 +382,7 @@ function OverlayPanel({
         <TopBar
           title={title}
           subtitle={subtitle}
+          showThemeToggle={false}
           action={
             <Button
               aria-label="Close"
@@ -498,6 +588,7 @@ function Home({
   isGuest?: boolean;
   onOpenAuth?: () => void;
 }) {
+  const { isDark, setTheme } = useTheme();
   const [initProfile] = useState<CachedProfile>(() => getInitialProfile());
   const [initStats] = useState(() => getInitialStats(initProfile.userEmail));
 
@@ -837,11 +928,13 @@ function Home({
       <TopBar
         subtitle={new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
         title={userName ? `Hello, ${userName}!` : "Hello, Student!"}
+        showThemeToggle={false}
         action={
           <div className="flex items-center gap-2">
+            <ThemeToggle compact />
             <Button
               aria-label="Search"
-              className="grid size-10 place-items-center rounded-full border border-line bg-card text-copy-muted"
+              className="grid size-10 place-items-center rounded-full border border-line bg-card text-copy-muted transition hover:border-accent hover:text-accent-bright"
               onClick={() => setPanel("search")}
             >
               <Icon name="search" className="size-4" />
@@ -865,6 +958,11 @@ function Home({
           </div>
         }
       />
+
+      <div className="mb-4 flex items-center justify-between rounded-2xl border border-line bg-card px-3.5 py-2 shadow-sm">
+        <span className="text-xs font-semibold text-copy-muted">Тема оформления:</span>
+        <ThemeToggle />
+      </div>
 
       <Button
         className="record-cta group relative w-full overflow-hidden rounded-card border border-accent/50 bg-gradient-to-br from-blue-deep to-accent p-6 text-left shadow-neon"
@@ -1373,6 +1471,39 @@ function Home({
           {/* Вкладка 1: Настройки обучения и ИИ */}
           {profileTab === "overview" && (
             <div className="mt-4 space-y-3">
+              <div className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-card p-4">
+                <div>
+                  <div className="text-xs font-bold text-white">Тема оформления</div>
+                  <div className="mt-0.5 text-mini text-copy-muted">
+                    {isDark ? "Тёмная тема" : "Светлая тема (по умолчанию)"}
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 rounded-xl border border-line bg-elevated p-1">
+                  <Button
+                    aria-pressed={!isDark}
+                    className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold transition ${
+                      !isDark ? "bg-accent text-white shadow-glow" : "text-copy-muted hover:text-white"
+                    }`}
+                    onClick={() => setTheme("light")}
+                    type="button"
+                  >
+                    <Icon name="sun" className="size-3.5" />
+                    Светлая
+                  </Button>
+                  <Button
+                    aria-pressed={isDark}
+                    className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold transition ${
+                      isDark ? "bg-accent text-white shadow-glow" : "text-copy-muted hover:text-white"
+                    }`}
+                    onClick={() => setTheme("dark")}
+                    type="button"
+                  >
+                    <Icon name="moon" className="size-3.5" />
+                    Тёмная
+                  </Button>
+                </div>
+              </div>
+
               <div className="rounded-2xl border border-line bg-card p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
@@ -2716,17 +2847,55 @@ function Processing({
         // 2. Get a transcript: live browser transcript / PDF text, otherwise server speech-to-text.
         setStage(1);
         let transcript = (current.transcript ?? "").trim();
+        let transcribeError = "";
+
         if (!transcript && current.storagePath) {
-          const response = await authFetch("/api/transcribe", {
-            path: current.storagePath,
-            language: current.sourceLanguage,
-          });
-          const data = await response.json().catch(() => ({}));
-          if (!response.ok) throw new Error(data.error ?? `Transcription failed (${response.status})`);
-          transcript = String(data.transcript ?? "").trim();
+          try {
+            const response = await authFetch("/api/transcribe", {
+              path: current.storagePath,
+              language: current.sourceLanguage,
+            });
+            const data = await response.json().catch(() => ({}));
+            if (response.ok && data.transcript) {
+              transcript = String(data.transcript).trim();
+            } else if (data.error) {
+              transcribeError = String(data.error);
+            }
+          } catch (e: any) {
+            console.warn("Storage audio transcribe failed:", e);
+            transcribeError = e?.message || "Ошибка соединения при расшифровке";
+          }
         }
+
+        // Direct audio transcription for guest uploads or local files <= 14 MB
+        if (!transcript && current.audioBlob) {
+          try {
+            if (current.audioBlob.size <= 14 * 1024 * 1024) {
+              const base64Data = await blobToBase64(current.audioBlob);
+              const response = await authFetch("/api/transcribe", {
+                data: base64Data,
+                mimeType: current.audioBlob.type || current.audioMimeType || "audio/mpeg",
+                language: current.sourceLanguage,
+              });
+              const data = await response.json().catch(() => ({}));
+              if (response.ok && data.transcript) {
+                transcript = String(data.transcript).trim();
+              } else if (data.error && !transcribeError) {
+                transcribeError = String(data.error);
+              }
+            }
+          } catch (e: any) {
+            console.warn("Direct blob transcribe failed:", e);
+            if (!transcribeError) transcribeError = e?.message || "Ошибка передачи аудио";
+          }
+        }
+
         if (transcript.length < 20) {
-          transcript = `Lecture session on ${current.title || "Academic Lecture"} in ${current.subject || "Computer Science"}. During this session, the professor presented key theoretical definitions, architectural invariants, and analytical frameworks. Students examined practical algorithms, comparative trade-offs, and methodology for upcoming coursework and exams.`;
+          if (transcribeError) {
+            setWarning(`Автоматическая расшифровка не вернула текст (${transcribeError}). Конспект сгенерирован по теме занятия.`);
+          }
+          const cleanSubj = current.subject && current.subject !== "General Subject" && current.subject !== "Общий предмет" ? current.subject : current.title || "Academic Concepts";
+          transcript = `Detailed academic lecture on "${current.title || "Academic Lecture"}" in ${cleanSubj}. In this session, the professor explains the fundamental definitions, theoretical principles, core mechanisms, practical applications, and key review questions of ${current.title || cleanSubj}. Students analyze important concepts and methodologies required for coursework and exam preparation.`;
         }
         onLectureUpdate({ transcript });
         if (current.recordingId) await updateRecording(current.recordingId, { transcript, title: current.title });
@@ -2841,192 +3010,271 @@ function generateFallbackSummary(
   language: Language
 ): SummaryData {
   const cleanTitle = title || "Academic Lecture";
-  const cleanSubj = subject || "Computer Science";
+  const cleanSubj = subject && subject !== "General Subject" && subject !== "Общий предмет" ? subject : cleanTitle;
 
   if (language === "Russian") {
     return {
-      explanation: `Лекция посвящена теме «${cleanTitle}» (${cleanSubj}). В материале рассматриваются фундаментальные принципы, теоретический базис и методологические подходы к анализу предметной области. Преподаватель детально объясняет ключевые структуры, взаимосвязи между компонентами и практические критерии оптимизации при решении инженерных задач.`,
+      explanation: `Лекция посвящена теме «${cleanTitle}» (${cleanSubj}). В материале рассматриваются фундаментальные принципы, теоретический базис и методологические подходы к анализу предметной области. Преподаватель детально объясняет ключевые понятия, внутреннюю структуру изучаемых явлений и практические критерии успешного решения прикладных задач.`,
       simplified: `Простыми словами: в этой теме («${cleanTitle}») разбирается, как логически устроены базовые концепции и как применять их на практике шаг за шагом без лишней сложности.`,
       keyPoints: [
-        `Основные определения и контекст дисциплины «${cleanSubj}»`,
-        `Ключевые теоретические свойства и инварианты изучаемого процесса`,
-        `Практические примеры и типовые ошибки при реализации алгоритмов`,
-        `Методы оценки эффективности и подготовка к экзаменационным вопросам`
+        `Основные определения и академический контекст темы «${cleanTitle}»`,
+        `Ключевые теоретические свойства и закономерности дисциплины «${cleanSubj}»`,
+        `Практические примеры, методология анализа и типовые ошибки`,
+        `Методы проверки усвоения материала и подготовка к экзаменационным вопросам`
       ],
       terms: [
-        `${cleanTitle}: Основная тема и концептуальный базис рассмотренного занятия.`,
-        `Архитектурный инвариант: Условие, сохраняющееся истинным на протяжении всей работы системы.`,
-        `Оптимизация: Выбор наилучшего алгоритмического или инженерного решения с наименьшей вычислительной сложностью.`,
+        `${cleanTitle}: Центральная тема и концептуальный базис рассмотренного занятия.`,
+        `Ключевая концепция: Фундаментальный принцип предметной области «${cleanSubj}».`,
+        `Практическое применение: Методология решения типовых задач и анализа по теме «${cleanTitle}».`,
         `Контрольный самоконтроль: Проверка усвоения материала с помощью тестовых вопросов и карточек.`
       ],
-      example: `При решении практических кейсов по теме «${cleanTitle}» студенты применяют разобранные правила для построения надёжных инженерных решений в университетских проектах.`
+      example: `При решении практических заданий и курсовых проектов по направлению «${cleanSubj}» студенты применяют разобранные правила темы «${cleanTitle}» для построения корректных академических решений.`
     };
   }
 
   if (language === "Kazakh") {
     return {
-      explanation: `Дәріс «${cleanTitle}» тақырыбына және «${cleanSubj}» пәнінің негізгі ұғымдарына арналған. Оқу барысында жүйенің теориялық негіздері, алгоритмдік байланыстары және инженерлік тәсілдері толық талданды.`,
+      explanation: `Дәріс «${cleanTitle}» тақырыбына және «${cleanSubj}» пәнінің негізгі ұғымдарына арналған. Оқу барысында жүйенің теориялық негіздері, басты заңдылықтары және қолданбалы тәсілдері толық талданды.`,
       simplified: `Қарапайым сөзбен айтқанда: бұл дәрісте «${cleanTitle}» тақырыбының негізгі қағидалары мен оларды практикада тиімді қолдану жолдары қарастырылды.`,
       keyPoints: [
         `«${cleanTitle}» тақырыбының негізгі анықтамалары мен мазмұны`,
-        `Пән бойынша теориялық заңдылықтар мен қасиеттер`,
-        `Тәжірибелік мысалдар және оларды шешу жолдары`,
+        `«${cleanSubj}» пәні бойынша теориялық заңдылықтар мен қасиеттер`,
+        `Тәжірибелік мысалдар және оларды дұрыс талдау жолдары`,
         `Емтиханға дайындық кезіндегі басты назар аударатын сұрақтар`
       ],
       terms: [
-        `${cleanTitle}: Дәрістің негізгі тақырыбы мен тұжырымдамалық базасы.`,
-        `Оңтайландыру: Ең тиімді алгоритмдік немесе бағдарламалық шешімді таңдау.`,
-        `Жүйелік тәсіл: Деректер мен процестерді өзара байланыста қарастыру.`,
-        `Өзін-өзі тексеру: Алған білімді бекітуге арналған тест тапсырмалары.`
+        `${cleanTitle}: Дәрістің негізгі тақырыбы мен тұжырымдамалық өзегі.`,
+        `Негізгі қағида: «${cleanSubj}» саласындағы басты заңдылық пен түсінік.`,
+        `Тәжірибеде қолдану: «${cleanTitle}» бойынша алған білімді практикалық тапсырмаларда пайдалану.`,
+        `Өзін-өзі тексеру: Алған білімді бекітуге арналған тест тапсырмалары мен карточкалар.`
       ],
-      example: `Студенттер «${cleanTitle}» бойынша алған теориялық білімдерін зертханалық жұмыстарда және Astana IT University жобаларында сәтті қолданады.`
+      example: `Студенттер «${cleanTitle}» бойынша алған теориялық білімдерін практикалық сабақтарда және Astana IT University оқу жобаларында сәтті қолданады.`
     };
   }
 
   return {
-    explanation: `This lecture provides a comprehensive analysis of "${cleanTitle}" within the scope of ${cleanSubj}. Key theoretical foundations, algorithmic procedures, structural definitions, and empirical trade-offs were examined in detail.`,
-    simplified: `In simple terms: this lecture breaks down how "${cleanTitle}" operates conceptually and how to implement it methodically step-by-step.`,
+    explanation: `This lecture provides a comprehensive analysis of "${cleanTitle}" within the scope of ${cleanSubj}. Key theoretical foundations, core mechanisms, structural definitions, and empirical trade-offs were examined in detail.`,
+    simplified: `In simple terms: this lecture breaks down how "${cleanTitle}" operates conceptually and how to implement its core methods methodically step-by-step.`,
     keyPoints: [
-      `Core definitions and academic context of ${cleanTitle}`,
-      `Theoretical invariants and properties established during the session`,
-      `Practical algorithmic workflows and common implementation pitfalls`,
+      `Core definitions and academic context of "${cleanTitle}"`,
+      `Theoretical principles and properties established in ${cleanSubj}`,
+      `Practical analytical workflows and common interpretation pitfalls`,
       `Exam revision priorities and quantitative evaluation metrics`
     ],
     terms: [
       `${cleanTitle}: Primary subject and theoretical domain of the lecture.`,
-      `System Invariant: A fundamental logical condition maintained throughout execution.`,
-      `Optimization: Strategic selection of efficient algorithmic data structures.`,
+      `Core Principle: Fundamental concept governing ${cleanSubj}.`,
+      `Practical Application: Systematic methodology for analyzing ${cleanTitle}.`,
       `Active Recall: Structured self-testing methodology to reinforce long-term mastery.`
     ],
-    example: `In coursework projects, students apply the principles of ${cleanTitle} to build scalable, fault-tolerant software architectures.`
+    example: `In academic and laboratory coursework, students apply the principles of ${cleanTitle} to build rigorous, high-standard solutions.`
   };
 }
 
 function generateFallbackStudy(
   title: string,
   subject: string,
-  language: Language
+  language: Language,
+  summary?: SummaryData
 ): StudyData {
   const cleanTitle = title || "Academic Subject";
+  const cleanSubj = subject && subject !== "General Subject" && subject !== "Общий предмет" ? subject : cleanTitle;
+
+  // Extract real cards from summary if present
+  const extractedCards: { term: string; definition: string }[] = [];
+  if (summary?.terms && Array.isArray(summary.terms)) {
+    for (const raw of summary.terms) {
+      if (typeof raw === "string") {
+        const sep = raw.includes(":") ? ":" : raw.includes("—") ? "—" : raw.includes("-") ? "-" : null;
+        if (sep) {
+          const [t, ...rest] = raw.split(sep);
+          const term = t.trim();
+          const def = rest.join(sep).trim();
+          if (term && def) extractedCards.push({ term, definition: def });
+        }
+      }
+    }
+  }
+
   if (language === "Russian") {
+    const flashcards = extractedCards.length >= 2
+      ? extractedCards
+      : [
+          { term: cleanTitle, definition: summary?.explanation || `Центральная тема лекции по дисциплине «${cleanSubj}».` },
+          { term: `Основной принцип «${cleanTitle}»`, definition: summary?.simplified || `Базовый теоретический механизм и логическое обоснование темы.` },
+          { term: `Практический метод «${cleanTitle}»`, definition: summary?.example || `Способ решения прикладных задач и реализации проектов по направлению «${cleanSubj}».` },
+          { term: "Методика Active Recall", definition: "Техника самопроверки через активное извлечение знаний, повышающая запоминание до 40%." }
+        ];
+
     return {
       quiz: [
         {
-          question: `Какова основная цель изучения темы «${cleanTitle}»?`,
+          question: `Какова главная цель изучения темы «${cleanTitle}» в рамках дисциплины «${cleanSubj}»?`,
           answers: [
-            "Механическое заучивание определений без понимания",
-            "Освоение теоретических инвариантов и практическое применение методов на практике",
-            "Исключение использования алгоритмов в коде",
-            "Замена всех баз данных статическими файлами"
+            "Поверхностное заучивание терминов без понимания сути",
+            `Глубокое освоение фундаментальных принципов и практическое применение методов темы «${cleanTitle}»`,
+            `Полный отказ от использования теоретических моделей дисциплины «${cleanSubj}»`,
+            "Изучение посторонних вопросов, не имеющих отношения к предмету"
           ],
           correct: 1,
-          explanation: `Изучение «${cleanTitle}» направлено на понимание системных принципов и их корректное использование при разработке программного обеспечения.`
+          explanation: `Изучение «${cleanTitle}» направлено на формирование системного понимания концепций дисциплины «${cleanSubj}» и умения применять их на практике.`
         },
         {
-          question: "Что такое инвариант системы в контексте алгоритмов?",
+          question: `Какой критерий является ключевым при анализе и оценке темы «${cleanTitle}»?`,
           answers: [
-            "Значение, которое меняется на каждом шаге случайным образом",
-            "Логическое условие, которое остаётся истинным на всех итерациях алгоритма",
-            "Обязательное наличие графического интерфейса",
-            "Специальный синтаксис компилятора"
+            "Случайный выбор параметров без логического обоснования",
+            `Корректность применения базовых правил, структуры и взаимосвязи элементов темы «${cleanTitle}»`,
+            "Исключительно внешнее оформление без опоры на теоретические основы",
+            "Замена аналитических методов догадками"
           ],
           correct: 1,
-          explanation: "Инвариант — это фундаментальное свойство алгоритма, гарантирующее корректность его результата при завершении работы."
+          explanation: `Оценка темы «${cleanTitle}» строится на строгом соответствии теоретическим основам и логической согласованности решений.`
         },
         {
-          question: "Какой критерий является ключевым при оценке эффективности алгоритмического решения?",
+          question: `Какое практическое значение имеет качественное освоение материала «${cleanTitle}»?`,
           answers: [
-            "Количество строк кода",
-            "Вычислительная асимптотическая сложность по времени и памяти (Big-O)",
-            "Цвет темы в редакторе кода",
-            "Имя автора программы"
+            "Материал не имеет практической ценности для студента",
+            `Возможность безошибочно решать практические задания, анализировать кейсы и успешно сдать экзамен`,
+            "Исключение необходимости самостоятельной работы над проектами",
+            "Применение только устаревших и неэффективных подходов"
           ],
           correct: 1,
-          explanation: "Асимптотическая сложность (Big-O) показывает, как растут затраты ресурсов процессора и оперативной памяти при увеличении объёма входных данных."
+          explanation: `Знание «${cleanTitle}» обеспечивает надёжную базу для практических и экзаменационных испытаний.`
         },
         {
-          question: "Почему активное воспроизведение (Active Recall) эффективнее пассивного чтения конспекта?",
+          question: `Как рекомендуется закреплять изученные концепции по теме «${cleanTitle}»?`,
           answers: [
-            "Оно требует меньше времени на сон",
-            "Оно стимулирует долговременную память за счёт самостоятельного извлечения информации",
-            "Оно полностью отменяет сдачу экзаменов",
-            "Оно работает только при выключенном компьютере"
+            "Однократным пассивным пролистыванием слайдов накануне сессии",
+            `Регулярным активным самоконтролем через карточки терминов, тесты и объяснение своими словами`,
+            "Игнорированием глоссария и конспектов лекций",
+            "Заучиванием случайных фрагментов без контекста"
           ],
           correct: 1,
-          explanation: "Научные исследования подтверждают, что проверка знаний через тесты и карточки увеличивает удержание материала до 40% (testing effect)."
+          explanation: "Активное воспроизведение знаний (Active Recall) увеличивает долгосрочное удержание материала до 40%."
         }
       ],
-      flashcards: [
-        { term: cleanTitle, definition: "Центральная тема лекции, определяющая предметное поле и практические задачи." },
-        { term: "Big-O Notation", definition: "Математическая нотация для описания асимптотической сложности алгоритма по времени и памяти." },
-        { term: "Invariant (Инвариант)", definition: "Условие, сохраняющее свою истинность на протяжении работы алгоритмического цикла." },
-        { term: "Active Recall", definition: "Методика обучения через активное извлечение ответов из памяти с помощью тестов и карточек." }
-      ]
+      flashcards
     };
   }
 
   if (language === "Kazakh") {
+    const flashcards = extractedCards.length >= 2
+      ? extractedCards
+      : [
+          { term: cleanTitle, definition: summary?.explanation || `«${cleanSubj}» пәні бойынша дәрістің негізгі зерттеу тақырыбы.` },
+          { term: `«${cleanTitle}» негізгі қағидасы`, definition: summary?.simplified || `Тақырыптың басты теориялық заңдылығы мен түсіндірмесі.` },
+          { term: `Тәжірибеде қолдану`, definition: summary?.example || `«${cleanTitle}» бойынша алған білімді практикалық тапсырмаларда тиімді пайдалану.` },
+          { term: "Active Recall әдісі", definition: "Алған білімді карточкалар мен тест арқылы белсенді қайталап, есте сақтауды 40%-ға арттыру." }
+        ];
+
     return {
       quiz: [
         {
-          question: `«${cleanTitle}» тақырыбын оқып-үйренудің басты мақсаты қандай?`,
+          question: `«${cleanTitle}» («${cleanSubj}») тақырыбын меңгерудің басты мақсаты қандай?`,
           answers: [
-            "Анықтамаларды түсінбей жаттау",
-            "Негізгі заңдылықтарды меңгеріп, оларды тәжірибеде дұрыс қолдану",
-            "Бағдарламалау алгоритмдерінен бас тарту",
-            "Барлық дерекқорларды мәтіндік файлмен алмастыру"
+            "Анықтамаларды түсінбей, жаттанды түрде қайталау",
+            `«${cleanTitle}» тақырыбының негізгі қағидаларын терең түсініп, оларды тәжірибеде дұрыс қолдану`,
+            `«${cleanSubj}» пәнінің заңдылықтарынан бас тарту`,
+            "Сабақ мазмұнына сәйкес келмейтін тақырыптарды таңдау"
           ],
           correct: 1,
-          explanation: `«${cleanTitle}» пәнін игеру жүйелі ойлауды дамытып, тиімді бағдарламалық шешімдер қабылдауға мүмкіндік береді.`
+          explanation: `«${cleanTitle}» тақырыбы жүйелі білім қалыптастырып, емтихан мен тәжірибеде нақты нәтижеге қол жеткізуге бағытталған.`
         },
         {
-          question: "Алгоритмдік инвариант дегеніміз не?",
+          question: `«${cleanTitle}» материалын талдау кезіндегі басты талап қандай?`,
           answers: [
-            "Кездейсоқ өзгеретін мән",
-            "Алгоритм орындалуы барысында әрқашан ақиқат болып қалатын логикалық шарт",
-            "Қолданбаның интерфейс дизайны",
-            "Компилятордың арнайы директивасы"
+            "Логикалық негізсіз кездейсоқ шешімдер қабылдау",
+            `Негізгі ұғымдар мен процестердің өзара байланысын және дұрыс құрылымын сақтау`,
+            "Пәннің теориялық базасын елемеу",
+            "Тек сыртқы пішініне мән беріп, мазмұнын түсінбеу"
           ],
           correct: 1,
-          explanation: "Инвариант — алгоритмнің дұрыс нәтиже беруіне кепілдік беретін негізгі математикалық қасиет."
+          explanation: `Тақырыпты дұрыс игеру логикалық жүйелілікке және анықтамалардың нақтылығына негізделеді.`
+        },
+        {
+          question: `«${cleanTitle}» бойынша алған білімді қалай тиімді бекітуге болады?`,
+          answers: [
+            "Дәрісті тек бір рет көз жүгіртіп оқумен шектелу",
+            `Флэшкарталар, тест сұрақтары және өзін-өзі тексеру арқылы белсенді қайталау`,
+            "Глоссарий мен негізгі терминдерді елемеу",
+            "Түсініксіз сұрақтарды мүлдем талдамау"
+          ],
+          correct: 1,
+          explanation: "Белсенді қайталау (Active Recall) әдісі ақпараттың ұзақ мерзімді жадта 40%-ға дейін жақсы сақталуын қамтамасыз етеді."
+        },
+        {
+          question: `«${cleanTitle}» тақырыбын меңгерудің студент үшін практикалық пайдасы қандай?`,
+          answers: [
+            "Практикалық тұрғыда ешқандай маңызы жоқ",
+            `Оқу жобалары мен зертханалық тапсырмаларды сапалы орындап, емтиханды сәтті тапсыру`,
+            "Барлық ережелер мен теориялық әдістерден бас тарту",
+            "Қателіктерді дер кезінде түзеуден бас тарту"
+          ],
+          correct: 1,
+          explanation: `«${cleanTitle}» бойынша білім студентке академиялық тапсырмаларды жоғары деңгейде орындауға мүмкіндік береді.`
         }
       ],
-      flashcards: [
-        { term: cleanTitle, definition: "Дәрістің негізгі зерттеу нысаны мен теориялық өзегі." },
-        { term: "Big-O Notation", definition: "Алгоритмнің уақыт пен жад бойынша тиімділігін бағалайтын математикалық сипаттама." }
-      ]
+      flashcards
     };
   }
+
+  const flashcards = extractedCards.length >= 2
+    ? extractedCards
+    : [
+        { term: cleanTitle, definition: summary?.explanation || `Primary subject and central focus of the lecture in ${cleanSubj}.` },
+        { term: `Core Principle of ${cleanTitle}`, definition: summary?.simplified || `Fundamental theoretical mechanism and logical structure of the topic.` },
+        { term: "Practical Application", definition: summary?.example || `Methodology for applying concepts of ${cleanTitle} to problem solving and coursework.` },
+        { term: "Active Recall", definition: "Self-testing learning methodology that boosts long-term retention by up to 40%." }
+      ];
 
   return {
     quiz: [
       {
-        question: `What is the primary objective of studying "${cleanTitle}"?`,
+        question: `What is the primary objective of studying "${cleanTitle}" in ${cleanSubj}?`,
         answers: [
-          "Superficial memorization without conceptual clarity",
-          "Mastering foundational principles and applying analytical workflows to problem solving",
-          "Avoiding the use of structured data architectures",
-          "Replacing distributed cloud databases with flat files"
+          "Superficial memorization without conceptual understanding",
+          `Mastering foundational principles and applying structured methods of "${cleanTitle}" in practice`,
+          `Disregarding the core principles of ${cleanSubj}`,
+          "Focusing on unrelated topics outside the curriculum"
         ],
         correct: 1,
-        explanation: `Studying "${cleanTitle}" develops rigorous problem-solving skills and structural understanding necessary for production engineering.`
+        explanation: `Studying "${cleanTitle}" develops rigorous conceptual clarity and practical problem-solving capability.`
       },
       {
-        question: "What does an invariant signify in computer science?",
+        question: `What constitutes the central criterion when evaluating "${cleanTitle}"?`,
         answers: [
-          "A variable that mutates unpredictably during loop execution",
-          "A logical property that remains true throughout the lifecycle of an algorithm",
-          "A mandatory graphical user interface library",
-          "A hardware cache coherence flag"
+          "Arbitrary guessing without structural justification",
+          `Theoretical correctness, logical consistency, and coherence of essential components`,
+          "Superficial visual presentation without empirical substance",
+          "Skipping foundational definitions"
         ],
         correct: 1,
-        explanation: "An invariant is a proven property that guarantees correctness across all recursive or iterative states."
+        explanation: `Rigorous analysis of "${cleanTitle}" demands adherence to theoretical principles and structured reasoning.`
+      },
+      {
+        question: `What is the most effective approach to mastering the concepts of "${cleanTitle}"?`,
+        answers: [
+          "Passive re-reading of slides the night before exams",
+          `Active recall through practice quizzes, flashcards, and self-explanation`,
+          "Ignoring key terminology and glossaries",
+          "Memorizing disconnected fragments without context"
+        ],
+        correct: 1,
+        explanation: "Active recall testing strengthens long-term memory retention by up to 40% compared to passive reading."
+      },
+      {
+        question: `What is the practical impact of understanding "${cleanTitle}"?`,
+        answers: [
+          "It offers no tangible utility for coursework or exams",
+          `It empowers students to resolve complex scenarios, complete laboratory tasks, and excel in exams`,
+          "It prevents applying modern standards to real-world tasks",
+          "It replaces systematic analysis with trial and error"
+        ],
+        correct: 1,
+        explanation: `Mastering "${cleanTitle}" provides the necessary competence to execute coursework and project deliverables successfully.`
       }
     ],
-    flashcards: [
-      { term: cleanTitle, definition: "The central subject matter and architectural focus of the session." },
-      { term: "Asymptotic Complexity", definition: "A mathematical framework quantifying performance scalability as input sizes expand." }
-    ]
+    flashcards
   };
 }
 
@@ -3092,9 +3340,20 @@ function LectureSummary({
           if (response.ok) {
             const data = (await response.json()) as SummaryData;
             setSummaryData(data);
-            onLectureUpdate({ summary: data, summaryLanguage: language });
+            const isGenericTitle =
+              !lecture.title ||
+              /^(лекция|аудиолекция|uploaded lecture|recording)/i.test(lecture.title.trim());
+            const nextTitle =
+              isGenericTitle && data.topicTitle && data.topicTitle.trim()
+                ? data.topicTitle.trim()
+                : lecture.title;
+
+            onLectureUpdate({ summary: data, summaryLanguage: language, title: nextTitle });
             if (lecture.recordingId) {
-              void updateRecording(lecture.recordingId, { summary: JSON.stringify({ language, data }) });
+              void updateRecording(lecture.recordingId, {
+                summary: JSON.stringify({ language, data }),
+                title: nextTitle,
+              });
             }
             return;
           }
@@ -3543,9 +3802,25 @@ function Tests({
     setStudyError("");
     try {
       let transcript = (lecture.transcript ?? "").trim();
-      if (transcript.length < 20) {
-        transcript = `Lecture session on ${lecture.title || "Academic Concepts"} (${lecture.subject || "Computer Science"}).`;
+      if (transcript.length < 50 && lecture.summary) {
+        transcript = [
+          `Lecture Title: ${lecture.title}. Subject: ${lecture.subject}.`,
+          `Overview: ${lecture.summary.explanation}`,
+          `Simplified: ${lecture.summary.simplified}`,
+          lecture.summary.keyPoints?.length ? `Key Points:\n- ${lecture.summary.keyPoints.join("\n- ")}` : "",
+          lecture.summary.terms?.length ? `Core Concepts:\n- ${lecture.summary.terms.join("\n- ")}` : "",
+          lecture.summary.example ? `Practical Example: ${lecture.summary.example}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n\n");
+      } else if (transcript.length < 20) {
+        const cleanSubj =
+          lecture.subject && lecture.subject !== "General Subject" && lecture.subject !== "Общий предмет"
+            ? lecture.subject
+            : lecture.title || "Academic Concepts";
+        transcript = `Academic lecture session on "${lecture.title}" in ${cleanSubj}. The professor introduces core definitions, principles, terminology, and practical applications for ${lecture.title}.`;
       }
+
       try {
         const response = await authFetch("/api/study", {
           transcript,
@@ -3571,8 +3846,13 @@ function Tests({
         console.warn("Live AI study API failed, engaging fallback:", apiErr);
       }
 
-      // High-availability fallback study pack
-      const fallbackStudy = generateFallbackStudy(lecture.title, lecture.subject, lecture.outputLanguage);
+      // High-availability fallback study pack scoped to the actual lecture topic & summary
+      const fallbackStudy = generateFallbackStudy(
+        lecture.title,
+        lecture.subject,
+        lecture.outputLanguage,
+        lecture.summary,
+      );
       setStudy(fallbackStudy);
       setCardIndex(0);
       setDeckComplete(false);
@@ -3585,7 +3865,12 @@ function Tests({
       }
     } catch (err) {
       console.error("generateStudy error:", err);
-      const fallbackStudy = generateFallbackStudy(lecture.title, lecture.subject, lecture.outputLanguage);
+      const fallbackStudy = generateFallbackStudy(
+        lecture.title,
+        lecture.subject,
+        lecture.outputLanguage,
+        lecture.summary,
+      );
       setStudy(fallbackStudy);
     } finally {
       setStudyLoading(false);
@@ -3593,9 +3878,13 @@ function Tests({
   };
 
   useEffect(() => {
-    if (!study) void generateStudy();
+    if (!lecture.study || lecture.studyLanguage !== lecture.outputLanguage) {
+      void generateStudy();
+    } else {
+      setStudy(lecture.study);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [lecture.recordingId, lecture.title, lecture.outputLanguage]);
   const [tab, setTab] = useState<"quiz" | "cards">(initialMode);
   const [activeQuiz, setActiveQuiz] = useState<string | null>(null);
   const [questionIndex, setQuestionIndex] = useState(0);
@@ -4506,11 +4795,20 @@ export default function App({
     const prefLang = getInitialProfile().defaultLang;
     const subj = presetSubject || "General Subject";
     const media = fileObj && !isPdf ? fileObj : undefined;
+    const now = new Date();
+    const dateStr = now.toLocaleDateString("ru-RU");
+    const timeStr = now.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+    const defaultTitle = sourceFile
+      ? sourceFile.replace(/\.[^/.]+$/, "")
+      : subj !== "General Subject"
+        ? `${subj} · ${dateStr} ${timeStr}`
+        : `Аудиолекция · ${dateStr} ${timeStr}`;
+
     setSelectedLecture({
-      title: sourceFile ? sourceFile.replace(/\.[^/.]+$/, "") : subj !== "General Subject" ? `${subj} · Лекция` : "Uploaded Lecture",
+      title: defaultTitle,
       subject: subj,
       professor: "Преподаватель",
-      date: new Date().toISOString().split("T")[0],
+      date: now.toISOString().split("T")[0],
       sourceLanguage: "Russian",
       outputLanguage: prefLang,
       sourceType,
@@ -4519,6 +4817,12 @@ export default function App({
       audioBlob: media,
       audioUrl: media ? URL.createObjectURL(media) : undefined,
       audioMimeType: media?.type,
+      recordingId: undefined,
+      storagePath: undefined,
+      summary: undefined,
+      summaryLanguage: undefined,
+      study: undefined,
+      studyLanguage: undefined,
     });
     setPresetSubject("");
     setProcessed(false);
@@ -4536,11 +4840,18 @@ export default function App({
   }) => {
     const prefLang = getInitialProfile().defaultLang;
     const subj = presetSubject || "General Subject";
+    const now = new Date();
+    const dateStr = now.toLocaleDateString("ru-RU");
+    const timeStr = now.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+    const defaultTitle = subj !== "General Subject"
+      ? `${subj} (${dateStr} ${timeStr})`
+      : `Лекция · ${dateStr} ${timeStr}`;
+
     setSelectedLecture({
-      title: subj !== "General Subject" ? `${subj} (${new Date().toLocaleDateString("ru-RU")})` : `Лекция ${new Date().toLocaleDateString("ru-RU")}`,
+      title: defaultTitle,
       subject: subj,
       professor: "Преподаватель",
-      date: new Date().toISOString().split("T")[0],
+      date: now.toISOString().split("T")[0],
       sourceLanguage: audio.sourceLanguage ?? "Russian",
       outputLanguage: audio.outputLanguage ?? prefLang,
       sourceType: "recording",
@@ -4550,6 +4861,12 @@ export default function App({
       audioUrl: URL.createObjectURL(audio.blob),
       audioDuration: audio.duration,
       audioMimeType: audio.mimeType,
+      recordingId: undefined,
+      storagePath: undefined,
+      summary: undefined,
+      summaryLanguage: undefined,
+      study: undefined,
+      studyLanguage: undefined,
     });
     setPresetSubject("");
     setProcessed(false);

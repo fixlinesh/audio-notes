@@ -5,11 +5,12 @@ export const json = (body: unknown, status = 200) =>
 
 export const geminiKey = () => process.env.GEMINI_API_KEY || "";
 
-// Ordered list of candidate models optimized for fast response (<3s) to prevent Vercel timeouts
+// Ordered list of candidate models verified available in Gemini API.
+// gemini-3.5-flash is primary because it reliably supports multimodality/audio without 503 spikes.
 export const CANDIDATE_MODELS = [
+  "gemini-3.5-flash",
   "gemini-3.5-flash-lite",
-  "gemini-3.1-flash-lite",
-  "gemini-flash-lite-latest",
+  "gemini-3.8-flash",
 ];
 
 const ALLOWED_LANGUAGES = new Set(["English", "Russian", "Kazakh"]);
@@ -52,16 +53,17 @@ export async function requireUser(
 export async function callGemini(
   parts: unknown[],
   generationConfig?: unknown,
-  options?: { allowEmpty?: boolean },
+  options?: { allowEmpty?: boolean; timeoutMs?: number },
 ): Promise<{ text?: string; error?: string; status?: number; debug?: any }> {
   let lastError = "Could not reach AI service.";
   let lastStatus = 502;
   const attempts: any[] = [];
+  const timeoutMs = options?.timeoutMs ?? 45000;
 
   for (const model of CANDIDATE_MODELS) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 6500);
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
       const upstream = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
         {

@@ -1,10 +1,13 @@
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import Root from './Root'
-import './index.css'
+import React from "react";
+import ReactDOM from "react-dom/client";
+import Root from "./Root";
+import { ThemeProvider } from "./theme";
+import "./index.css";
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
+ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <Root />
+    <ThemeProvider>
+      <Root />
+    </ThemeProvider>
   </React.StrictMode>,
-)
+);

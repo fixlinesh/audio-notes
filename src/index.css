@@ -1,25 +1,25 @@
 @import "tailwindcss";
 
 @theme {
-  --color-page: #07090d;
-  --color-app: #0e1117;
-  --color-nav: #11151d;
-  --color-card: #151a23;
-  --color-elevated: #1c2330;
-  --color-line: #262e3b;
-  --color-white: #f7f9ff;
-  --color-ink: #111827;
-  --color-copy-muted: #99a4b7;
-  --color-copy-dim: #647087;
-  --color-blue-deep: #1f4e79;
-  --color-accent: #3478f6;
-  --color-accent-bright: #6ea3ff;
-  --color-accent-muted: #172b49;
-  --color-blue-soft: #b9d6ff;
-  --color-purple: #8257e6;
-  --color-purple-light: #b89bff;
-  --color-green: #4dd6a5;
-  --color-red: #ff5d64;
+  --color-page: var(--theme-page);
+  --color-app: var(--theme-app);
+  --color-nav: var(--theme-nav);
+  --color-card: var(--theme-card);
+  --color-elevated: var(--theme-elevated);
+  --color-line: var(--theme-line);
+  --color-white: var(--theme-text-white);
+  --color-ink: var(--theme-ink);
+  --color-copy-muted: var(--theme-copy-muted);
+  --color-copy-dim: var(--theme-copy-dim);
+  --color-blue-deep: var(--theme-blue-deep);
+  --color-accent: var(--theme-accent);
+  --color-accent-bright: var(--theme-accent-bright);
+  --color-accent-muted: var(--theme-accent-muted);
+  --color-blue-soft: var(--theme-blue-soft);
+  --color-purple: var(--theme-purple);
+  --color-purple-light: var(--theme-purple-light);
+  --color-green: var(--theme-green);
+  --color-red: var(--theme-red);
   --radius-card: 1.5rem;
   --text-mini: 0.625rem;
   --shadow-glow: 0 0 24px rgb(52 120 246 / 0.28);
@@ -28,10 +28,64 @@
   --shadow-green: 0 0 10px rgb(77 214 165 / 0.8);
   --shadow-red: 0 0 28px rgb(255 93 100 / 0.25);
   --shadow-purple: 0 0 35px rgb(130 87 230 / 0.35);
-  --shadow-input: 0 -10px 30px rgb(7 9 13 / 0.35);
-  --shadow-phone: 0 0 80px rgb(0 0 0 / 0.5);
+  --shadow-input: var(--theme-shadow-input);
+  --shadow-phone: var(--theme-shadow-phone);
   --font-sans: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
   --font-mono: "SFMono-Regular", Consolas, monospace;
+}
+
+/* Default / Light Theme */
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+  --theme-page: #f1f5f9;
+  --theme-app: #ffffff;
+  --theme-nav: #ffffff;
+  --theme-card: #f8fafc;
+  --theme-elevated: #f1f5f9;
+  --theme-line: #e2e8f0;
+  --theme-text-white: #0f172a;
+  --theme-ink: #0f172a;
+  --theme-copy-muted: #475569;
+  --theme-copy-dim: #94a3b8;
+  --theme-blue-deep: #1e3a8a;
+  --theme-accent: #2563eb;
+  --theme-accent-bright: #3b82f6;
+  --theme-accent-muted: #eff6ff;
+  --theme-blue-soft: #1d4ed8;
+  --theme-purple: #7c3aed;
+  --theme-purple-light: #9333ea;
+  --theme-green: #059669;
+  --theme-red: #ef4444;
+  --theme-shadow-input: 0 -4px 20px rgb(0 0 0 / 0.06);
+  --theme-shadow-phone: 0 20px 45px rgb(15 23 42 / 0.08), 0 2px 8px rgb(15 23 42 / 0.04);
+}
+
+/* Dark Theme */
+.dark,
+[data-theme="dark"] {
+  color-scheme: dark;
+  --theme-page: #07090d;
+  --theme-app: #0e1117;
+  --theme-nav: #11151d;
+  --theme-card: #151a23;
+  --theme-elevated: #1c2330;
+  --theme-line: #262e3b;
+  --theme-text-white: #f7f9ff;
+  --theme-ink: #111827;
+  --theme-copy-muted: #99a4b7;
+  --theme-copy-dim: #647087;
+  --theme-blue-deep: #1f4e79;
+  --theme-accent: #3478f6;
+  --theme-accent-bright: #6ea3ff;
+  --theme-accent-muted: #172b49;
+  --theme-blue-soft: #b9d6ff;
+  --theme-purple: #8257e6;
+  --theme-purple-light: #b89bff;
+  --theme-green: #4dd6a5;
+  --theme-red: #ff5d64;
+  --theme-shadow-input: 0 -10px 30px rgb(7 9 13 / 0.35);
+  --theme-shadow-phone: 0 0 80px rgb(0 0 0 / 0.5);
 }
 
 :root {
@@ -40,6 +94,36 @@
   font-family: var(--font-sans);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+  transition: background-color 200ms ease, color 200ms ease;
+}
+
+/* In Light Theme, ensure text inside vibrant primary action buttons remains crisp pure white */
+[data-theme="light"] .bg-accent,
+[data-theme="light"] .bg-accent *,
+[data-theme="light"] .bg-purple,
+[data-theme="light"] .bg-purple *,
+[data-theme="light"] .bg-red,
+[data-theme="light"] .bg-red *,
+[data-theme="light"] .record-cta,
+[data-theme="light"] .record-cta *,
+[data-theme="light"] [class*="from-accent"],
+[data-theme="light"] [class*="from-accent"] *,
+[data-theme="light"] [class*="from-blue-deep"],
+[data-theme="light"] [class*="from-blue-deep"] *,
+[data-theme="light"] [class*="to-purple"],
+[data-theme="light"] [class*="to-purple"] * {
+  --theme-text-white: #ffffff;
+  --color-white: #ffffff;
+}
+
+[data-theme="light"] .record-cta .text-blue-soft {
+  color: #dbeafe !important;
+}
+
+[data-theme="light"] button.bg-accent,
+[data-theme="light"] button[class*="from-accent"],
+[data-theme="light"] button.bg-red {
+  color: #ffffff !important;
 }
 
 body {
@@ -162,9 +246,11 @@ input:focus-visible {
 
 @keyframes wave {
   from {
+    opacity: 0.28;
     transform: scaleY(0.28);
   }
   to {
+    opacity: 1;
     transform: scaleY(1);
   }
 }

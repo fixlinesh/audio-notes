@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { supabase } from "./lib/supabase";
+import { useTheme } from "./theme";
 
 export default function Auth({ onContinueGuest }: { onContinueGuest?: () => void }) {
+  const { isDark, toggleTheme } = useTheme();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [fullName, setFullName] = useState("");
   const [university, setUniversity] = useState("Astana IT University");
@@ -80,7 +82,35 @@ export default function Auth({ onContinueGuest }: { onContinueGuest?: () => void
 
   return (
     <div className="min-h-screen bg-page">
-      <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center bg-app px-6 py-10 shadow-phone">
+      <div className="relative mx-auto flex min-h-screen max-w-md flex-col justify-center bg-app px-6 py-10 shadow-phone">
+        <div className="absolute right-6 top-6">
+          <div
+            role="radiogroup"
+            aria-label="Тема оформления"
+            className="inline-flex items-center gap-1 rounded-full border border-line bg-card p-1 shadow-sm"
+          >
+            <button
+              type="button"
+              onClick={() => { if (isDark) toggleTheme(); }}
+              className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-mini font-bold transition ${
+                !isDark ? "bg-accent text-white shadow-glow" : "text-copy-muted hover:text-white"
+              }`}
+            >
+              <span>☀️</span>
+              <span>Светлая</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => { if (!isDark) toggleTheme(); }}
+              className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-mini font-bold transition ${
+                isDark ? "bg-accent text-white shadow-glow" : "text-copy-muted hover:text-white"
+              }`}
+            >
+              <span>🌙</span>
+              <span>Тёмная</span>
+            </button>
+          </div>
+        </div>
         {/* Brand Header */}
         <div className="text-center">
           <div className="mx-auto grid size-16 place-items-center rounded-2xl bg-gradient-to-br from-accent to-purple text-white shadow-glow">

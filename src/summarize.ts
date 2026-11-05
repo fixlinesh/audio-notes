@@ -1,4 +1,5 @@
 export type SummaryData = {
+  topicTitle?: string;
   explanation: string;
   simplified: string;
   keyPoints: string[];

@@ -5,6 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Audio Notes — Умные конспекты и AI-помощник</title>
     <meta name="description" content="Запись лекций, транскрипция, конспекты и чат с преподавателем на базе искусственного интеллекта." />
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem('leasy_theme');
+          var theme = saved === 'dark' ? 'dark' : 'light';
+          document.documentElement.setAttribute('data-theme', theme);
+          if (theme === 'dark') {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

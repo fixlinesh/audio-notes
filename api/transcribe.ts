@@ -24,19 +24,31 @@ export async function POST(request: Request) {
 
   const path = String(body.path ?? "");
   const language = sanitizeLang(body.language, "English");
-  if (!path.startsWith(`${auth.user.id}/`) || path.includes("..")) {
-    return json({ error: "Forbidden." }, 403);
-  }
 
-  const file = await auth.client.storage.from("audio").download(path);
-  if (file.error || !file.data) return json({ error: "Could not read the uploaded file." }, 404);
-  if (file.data.size > MAX_BYTES) {
-    return json({ error: "File is too large for automatic transcription (max ~14 MB)." }, 413);
-  }
+  let mimeType = (String(body.mimeType ?? "") || "audio/mpeg").split(";")[0].toLowerCase().trim();
+  if (mimeType === "audio/webm") mimeType = "video/webm";
+  if (mimeType === "audio/m4a" || mimeType === "audio/x-m4a") mimeType = "audio/mp4";
+  let data = "";
 
-  let mimeType = (file.data.type || String(body.mimeType ?? "") || "audio/mpeg").split(";")[0];
-  if (mimeType === "audio/webm") mimeType = "video/webm"; // browser recordings: audio-only WebM container
-  const data = Buffer.from(await file.data.arrayBuffer()).toString("base64");
+  if (body.data && typeof body.data === "string") {
+    // Direct audio data passed (base64 string)
+    data = body.data;
+  } else if (path) {
+    if (!path.startsWith(`${auth.user.id}/`) || path.includes("..")) {
+      return json({ error: "Forbidden." }, 403);
+    }
+    const file = await auth.client.storage.from("audio").download(path);
+    if (file.error || !file.data) return json({ error: "Could not read the uploaded file." }, 404);
+    if (file.data.size > MAX_BYTES) {
+      return json({ error: "File is too large for automatic transcription (max ~14 MB)." }, 413);
+    }
+    mimeType = (file.data.type || mimeType || "audio/mpeg").split(";")[0].toLowerCase().trim();
+    if (mimeType === "audio/webm") mimeType = "video/webm"; // browser recordings: audio-only WebM container
+    if (mimeType === "audio/m4a" || mimeType === "audio/x-m4a") mimeType = "audio/mp4";
+    data = Buffer.from(await file.data.arrayBuffer()).toString("base64");
+  } else {
+    return json({ error: "No audio file or path provided." }, 400);
+  }
 
   const result = await callGemini(
     [
@@ -49,7 +61,7 @@ export async function POST(request: Request) {
       },
     ],
     undefined,
-    { allowEmpty: true },
+    { allowEmpty: true, timeoutMs: 55000 },
   );
   if (result.error) return json({ error: result.error }, result.status ?? 502);
   return json({ transcript: result.text ?? "" });
