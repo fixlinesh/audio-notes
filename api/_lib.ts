@@ -103,7 +103,7 @@ export async function callGemini(
       return { text };
     } catch (err: any) {
       console.error(`Gemini network/timeout on model ${model}:`, err.message);
-      attempts.push({ model, error: err.name === "AbortError" ? "timeout 6.5s" : err.message });
+      attempts.push({ model, error: err.name === "AbortError" ? `timeout ${timeoutMs / 1000}s` : err.message });
     }
   }
 

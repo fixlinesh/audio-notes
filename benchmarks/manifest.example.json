@@ -1,0 +1,65 @@
+[
+  {
+    "id": "EN_QUIET_01",
+    "language": "English",
+    "zone": "Quiet",
+    "wavPath": "benchmarks/audio/en_quiet.wav",
+    "referenceText": "Dijkstra algorithm computes shortest paths in weighted graphs with non negative edge weights using priority queues."
+  },
+  {
+    "id": "EN_MOD_01",
+    "language": "English",
+    "zone": "Moderate",
+    "wavPath": "benchmarks/audio/en_moderate.wav",
+    "referenceText": "Dijkstra algorithm computes shortest paths in weighted graphs with non negative edge weights using priority queues."
+  },
+  {
+    "id": "EN_NOISY_01",
+    "language": "English",
+    "zone": "Noisy",
+    "wavPath": "benchmarks/audio/en_noisy.wav",
+    "referenceText": "Dijkstra algorithm computes shortest paths in weighted graphs with non negative edge weights using priority queues."
+  },
+  {
+    "id": "RU_QUIET_01",
+    "language": "Russian",
+    "zone": "Quiet",
+    "wavPath": "benchmarks/audio/ru_quiet.wav",
+    "referenceText": "Алгоритм Дейкстры находит кратчайшие пути от одной вершины во взвешенном графе с неотрицательными весами рёбер."
+  },
+  {
+    "id": "RU_MOD_01",
+    "language": "Russian",
+    "zone": "Moderate",
+    "wavPath": "benchmarks/audio/ru_moderate.wav",
+    "referenceText": "Алгоритм Дейкстры находит кратчайшие пути от одной вершины во взвешенном графе с неотрицательными весами рёбер."
+  },
+  {
+    "id": "RU_NOISY_01",
+    "language": "Russian",
+    "zone": "Noisy",
+    "wavPath": "benchmarks/audio/ru_noisy.wav",
+    "referenceText": "Алгоритм Дейкстры находит кратчайшие пути от одной вершины во взвешенном графе с неотрицательными весами рёбер."
+  },
+  {
+    "id": "KZ_QUIET_01",
+    "language": "Kazakh",
+    "zone": "Quiet",
+    "wavPath": "benchmarks/audio/kz_quiet.wav",
+    "referenceText": "Дейкстра алгоритмі теріс емес салмақтары бар бағытталған графта ең қысқа жолдарды басымдық кезегі арқылы табады."
+  },
+  {
+    "id": "KZ_MOD_01",
+    "language": "Kazakh",
+    "zone": "Moderate",
+    "wavPath": "benchmarks/audio/kz_moderate.wav",
+    "referenceText": "Дейкстра алгоритмі теріс емес салмақтары бар бағытталған графта ең қысқа жолдарды басымдық кезегі арқылы табады."
+  },
+  {
+    "id": "KZ_NOISY_01",
+    "language": "Kazakh",
+    "zone": "Noisy",
+    "wavPath": "benchmarks/audio/kz_noisy.wav",
+    "referenceText": "Дейкстра алгоритмі теріс емес салмақтары бар бағытталған графта ең қысқа жолдарды басымдық кезегі арқылы табады."
+  }
+]

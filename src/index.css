@@ -287,60 +287,60 @@ input:focus-visible {
 @media print {
   :root,
   body {
-    background: #fff;
-    color: #111827;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 11.5pt;
   }
 
-  body * {
-    visibility: hidden;
-  }
-
-  .notes-page,
-  .notes-page *,
-  .summary-page,
-  .summary-page * {
-    visibility: visible;
+  nav,
+  header button,
+  button,
+  .no-print,
+  .back-button,
+  .audio-player,
+  .waveform,
+  .bottom-bar,
+  [role="dialog"] {
+    display: none !important;
   }
 
   .notes-page,
   .summary-page {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    padding: 2rem;
-    background: #fff;
-  }
-
-  .notes-page > div:nth-child(2),
-  .summary-page > button,
-  .summary-page > div:last-child,
-  nav {
-    display: none;
+    position: static !important;
+    inset: auto !important;
+    width: 100% !important;
+    padding: 0 !important;
+    background: #ffffff !important;
   }
 
   .notes-page section,
   .summary-page section {
     break-inside: avoid;
-    border-color: #d9dee8;
-    background: #fff;
-    box-shadow: none;
+    page-break-inside: avoid;
+    border-color: #cbd5e1 !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
   }
 
   .notes-page h1,
   .notes-page h2,
-  .notes-page .text-white,
-  .notes-page .text-blue-soft,
+  .notes-page h3,
   .summary-page h1,
   .summary-page h2,
-  .summary-page .text-white,
-  .summary-page .text-blue-soft {
-    color: #111827;
+  .summary-page h3,
+  .notes-page p,
+  .summary-page p,
+  .notes-page span,
+  .summary-page span,
+  .notes-page div,
+  .summary-page div {
+    color: #0f172a !important;
   }
 
   .notes-page .text-copy-muted,
   .notes-page .text-copy-dim,
   .summary-page .text-copy-muted,
   .summary-page .text-copy-dim {
-    color: #475569;
+    color: #475569 !important;
   }
 }

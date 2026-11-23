@@ -41,14 +41,14 @@ export const translations = {
     navTeacher: "AI Преподаватель",
 
     // Demo banner
-    juryDemo: "Open Jury Demo (Без входа · лекции готовы)",
+    juryDemo: "Гостевой режим (Без входа · лекции готовы)",
     signIn: "Войти",
     signOut: "Выйти",
 
     // Home Screen
     oneTapCapture: "Запись в 1 клик",
     recordLecture: "Записать лекцию",
-    recordDesc: "Шумоподавление >60 dB, живая речь в текст и умный конспект",
+    recordDesc: "Фильтр 120 Гц HPF (dBFS / SNR_bb), живая речь в текст и умный конспект",
     uploadFile: "Загрузить аудио / PDF",
     uploadDesc: "MP3, WAV, M4A до 100 МБ или PDF слайды",
     todaySchedule: "Расписание занятий",
@@ -75,8 +75,8 @@ export const translations = {
     uploadMode: "Файл лекции",
     noiseFilterActive: "Шумоподавление активно",
     noiseFilterOff: "Шумоподавление выкл",
-    noiseLevel: "Шум аудитории",
-    snrClarity: "Чистота речи",
+    noiseLevel: "Уровень (dBFS)",
+    snrClarity: "Широкополосный SNR_bb",
     speechRate: "Темп речи",
     biquadFilter: "Biquad-фильтр",
     biquadDesc: "Отсекает гул вентиляторов, эхо и фоновые шумы аудитории",
@@ -191,7 +191,7 @@ export const translations = {
     authHidePass: "Скрыть",
     authSubmitSignIn: "Войти в L-easy",
     authSubmitSignUp: "Создать аккаунт",
-    authGuestDemo: "🚀 Открыть демо без входа (Competition Jury Mode)",
+    authGuestDemo: "🚀 Гостевой режим без входа (Guest Preview Mode)",
     authSecuredBy: "🔒 Данные защищены Supabase Row-Level Security (RLS)",
   },
 
@@ -233,14 +233,14 @@ export const translations = {
     navTeacher: "AI Оқытушы",
 
     // Demo banner
-    juryDemo: "Open Jury Demo (Кірусіз · дәрістер дайын)",
+    juryDemo: "Қонақ режимі (Кірусіз · дәрістер дайын)",
     signIn: "Кіру",
     signOut: "Шығу",
 
     // Home Screen
     oneTapCapture: "1 басумен жазу",
     recordLecture: "Дәрісті жазу",
-    recordDesc: ">60 dB шуды басу, сөзді мәтінге айналдыру және AI конспект",
+    recordDesc: "120 Гц HPF сүзгісі (dBFS / SNR_bb), сөзді мәтінге айналдыру және AI конспект",
     uploadFile: "Аудио / PDF жүктеу",
     uploadDesc: "MP3, WAV, M4A 100 МБ дейін немесе PDF слайдтар",
     todaySchedule: "Сабақ кестесі",
@@ -267,8 +267,8 @@ export const translations = {
     uploadMode: "Дәріс файлы",
     noiseFilterActive: "Шу басу қосулы",
     noiseFilterOff: "Шу басу өшірулі",
-    noiseLevel: "Аудитория шуы",
-    snrClarity: "Сөздің анықтығы",
+    noiseLevel: "Деңгей (dBFS)",
+    snrClarity: "Кең жолақты SNR_bb",
     speechRate: "Сөйлеу қарқыны",
     biquadFilter: "Biquad-сүзгі",
     biquadDesc: "Желдеткіштер гүрілін, жаңғырықты және бөтен шуды сүзеді",
@@ -383,7 +383,7 @@ export const translations = {
     authHidePass: "Жасыру",
     authSubmitSignIn: "L-easy-ге кіру",
     authSubmitSignUp: "Аккаунт құру",
-    authGuestDemo: "🚀 Кірусіз демо ашу (Competition Jury Mode)",
+    authGuestDemo: "🚀 Кірусіз қонақ режимі (Guest Preview Mode)",
     authSecuredBy: "🔒 Деректер Supabase Row-Level Security (RLS) арқылы қорғалған",
   },
 
@@ -425,14 +425,14 @@ export const translations = {
     navTeacher: "AI Teacher",
 
     // Demo banner
-    juryDemo: "Open Jury Demo (No login · 3 lectures ready)",
+    juryDemo: "Guest Preview Mode (No login · 3 lectures ready)",
     signIn: "Sign In",
     signOut: "Sign Out",
 
     // Home Screen
     oneTapCapture: "One-tap capture",
     recordLecture: "Record Lecture",
-    recordDesc: "Biquad noise filter >60 dB, live speech-to-text & AI summary",
+    recordDesc: "120 Hz Biquad HPF (dBFS / SNR_bb), live speech-to-text & AI summary",
     uploadFile: "Upload Audio / PDF",
     uploadDesc: "MP3, WAV, M4A up to 100 MB or lecture slides in PDF",
     todaySchedule: "Class Schedule",
@@ -459,8 +459,8 @@ export const translations = {
     uploadMode: "Lecture File",
     noiseFilterActive: "Noise filter active",
     noiseFilterOff: "Noise filter off",
-    noiseLevel: "Ambient Noise",
-    snrClarity: "SNR Clarity",
+    noiseLevel: "Digital Level (dBFS)",
+    snrClarity: "Broadband SNR_bb",
     speechRate: "Speech Rate",
     biquadFilter: "Biquad Filter",
     biquadDesc: "Cuts classroom hum, echo and HVAC background noise",
@@ -575,7 +575,7 @@ export const translations = {
     authHidePass: "Hide",
     authSubmitSignIn: "Sign In to L-easy",
     authSubmitSignUp: "Create Account",
-    authGuestDemo: "🚀 Open Jury Demo (No login needed)",
+    authGuestDemo: "🚀 Open Guest Preview Mode (No login needed)",
     authSecuredBy: "🔒 Secured by Supabase Row-Level Security (RLS)",
   },
 };
