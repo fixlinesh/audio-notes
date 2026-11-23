@@ -306,23 +306,23 @@
       <div class="logo-area">
         <div class="forms-icon">F</div>
         <div class="form-title-group">
-          <h1>L-easy: Baseline Student Survey & Usability Evaluation</h1>
-          <p>1st–4th Year BSc Undergraduate Students · Formative Course Surveys & Pilot Usability (Total N = 64: Waves 8 + 38 + 18)</p>
+          <h1>L-easy: Student Needs & Audited 18+ Usability Evaluation</h1>
+          <p>Formative Course Survey (N = 38) + Audited 18+ Google Forms Verification (N = 13; 12 SUS; 2 under-18 screened out)</p>
         </div>
       </div>
       <div class="badge-verified">
-        ✓ Aggregated Records
+        ✓ Audited 18+ Archive
       </div>
     </div>
     <nav class="tabs-nav">
       <button class="tab-btn active" onclick="switchTab('survey')">
-        Baseline Survey <span class="tab-badge">38 responses</span>
+        Baseline Survey <span class="tab-badge">38 + 13</span>
       </button>
       <button class="tab-btn" onclick="switchTab('usability')">
-        Usability & SUS <span class="tab-badge">18 testers</span>
+        Audited 18+ Usability & SUS <span class="tab-badge">12 testers</span>
       </button>
       <button class="tab-btn" onclick="switchTab('spreadsheet')">
-        Cohort Summary <span class="tab-badge">N = 64</span>
+        Cohort & Audit Summary <span class="tab-badge">N = 51</span>
       </button>
     </nav>
   </header>
@@ -330,24 +330,48 @@
   <div class="container">
     <a href="/" class="btn-back-home">← Back to L-easy Live App</a>
 
-    <!-- TAB 1: BASELINE SURVEY (N=38) -->
+    <!-- TAB 1: BASELINE SURVEY (N=38 FORMATIVE + N=13 AUDITED 18+) -->
     <div id="tab-survey">
       <div class="form-card card-accent-top">
         <div class="summary-header">
           <div class="summary-stats">
-            <h2>38 responses</h2>
-            <p>1st–4th Year BSc Undergraduate Students · Formative Course Surveys & Pilot Usability (Total N = 64: Waves 8 + 38 + 18)</p>
+            <h2>38 Formative + 13 Audited (18+)</h2>
+            <p>Charts below show the early formative course baseline (N = 38 aggregated, raw timestamps not archived), corroborated by our N = 13 audited 18+ Google Forms cohort.</p>
           </div>
           <button class="sheets-cta" onclick="switchTab('spreadsheet')">
-            📊 View Aggregated Waves (N=64)
+            📊 View Cohort & Audit Summary (N=51)
           </button>
+        </div>
+      </div>
+
+      <!-- Audited Verification Cohort Summary Card -->
+      <div class="form-card" style="border-left: 6px solid var(--gf-green);">
+        <h3 class="question-title">Audited 18+ Google Forms Verification Cohort (N = 13 valid / 15 submissions)</h3>
+        <p class="question-sub">Timestamp window: 23.11.2026 16:04–17:04 UTC+5 · Ages 18–19 (18.3 ± 0.5 yrs) · 2 under-18 entries auto-screened out · Source: <code>benchmarks/survey_responses_verified.csv</code></p>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-top: 8px;">
+          <div style="background: #f8f9fa; padding: 12px; border-radius: 6px; text-align: center;">
+            <div style="font-size: 20px; font-weight: 700; color: #ea4335;">84.6%</div>
+            <div style="font-size: 11px; color: #5f6368;">Fall behind in lectures (11/13)</div>
+          </div>
+          <div style="background: #f8f9fa; padding: 12px; border-radius: 6px; text-align: center;">
+            <div style="font-size: 20px; font-weight: 700; color: #f9ab00;">100%</div>
+            <div style="font-size: 11px; color: #5f6368;">Never/rarely re-listen (6/7 of 13)</div>
+          </div>
+          <div style="background: #f8f9fa; padding: 12px; border-radius: 6px; text-align: center;">
+            <div style="font-size: 20px; font-weight: 700; color: #9c27b0;">69.2%</div>
+            <div style="font-size: 11px; color: #5f6368;">EN/RU/KZ STEM term gap (9/13)</div>
+          </div>
+          <div style="background: #f8f9fa; padding: 12px; border-radius: 6px; text-align: center;">
+            <div style="font-size: 20px; font-weight: 700; color: #0f9d58;">92.3%</div>
+            <div style="font-size: 11px; color: #5f6368;">Want integrated tool (12/13)</div>
+          </div>
         </div>
       </div>
 
       <!-- Question 1 -->
       <div class="form-card">
         <h3 class="question-title">1. Can you listen, comprehend, and write complete lecture notes at the same time?</h3>
-        <p class="question-sub">38 responses · Single choice</p>
+        <p class="question-sub">38 formative responses · Aggregated baseline</p>
         <div class="chart-layout">
           <svg viewBox="0 0 100 100" width="160" height="160">
             <!-- 76.3% (274.7 deg) Red/Coral, 23.7% (85.3 deg) Blue -->
@@ -514,107 +538,133 @@
       </div>
     </div>
 
-    <!-- TAB 2: USABILITY & SUS (N=18) -->
+    <!-- TAB 2: AUDITED 18+ USABILITY & SUS (N=12) -->
     <div id="tab-usability" style="display:none;">
       <div class="form-card card-accent-green">
         <div class="summary-header">
           <div class="summary-stats">
-            <h2>18 Undergraduate Evaluators (1st–4th Year BSc)</h2>
-            <p>5-Step Task Scenario (Sequential v1 → v2 Pilot): Guest Preview → Record with dBFS/SNR_bb Sensor (EC/NS/AGC=OFF) → Trilingual Summary → 8-Item Quiz → AI Teacher</p>
+            <h2>12 Audited Evaluators (Aged 18–19)</h2>
+            <p>5-Step Unmoderated Guest Workflow: Home → Guest Mode → Upload/Record Audio → Trilingual Summary → 8-Item Quiz (1 adult skipped device check via branch gate; 2 under-18 excluded)</p>
           </div>
           <div style="text-align: right;">
-            <div style="font-size: 24px; font-weight: 700; color: var(--gf-green);">84.5 / 100</div>
-            <div style="font-size: 11px; color: var(--gf-muted);">SUS Usability Grade A</div>
+            <div style="font-size: 24px; font-weight: 700; color: var(--gf-green);">70.6 / 100</div>
+            <div style="font-size: 11px; color: var(--gf-muted);">Brooke SUS ± 16.0 (47.5–100.0)</div>
           </div>
         </div>
       </div>
 
       <div class="form-card">
-        <h3 class="question-title">Key Usability Metrics (Before v1 vs After v2)</h3>
-        <p class="question-sub">18 participants · 4 cohorts (1st–4th year BSc)</p>
+        <h3 class="question-title">Verified Cross-Device Usability Metrics (Google Forms Audit)</h3>
+        <p class="question-sub">12 consenting participants aged 18–19 · 4 device platforms (Android 6, iPhone iOS 3, Windows PC 2, iPad 1)</p>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 12px;">
           <div style="background: #f8f9fa; padding: 16px; border-radius: 8px; text-align: center;">
-            <div style="font-size: 28px; font-weight: 700; color: #0f9d58;">100%</div>
-            <div style="font-size: 12px; color: #5f6368;">Task Completion Rate (18/18)</div>
-            <div style="font-size: 11px; color: #0f9d58; margin-top: 4px;">↑ was 77.8% before removing login wall</div>
+            <div style="font-size: 26px; font-weight: 700; color: #0f9d58;">33.3% / 66.7%</div>
+            <div style="font-size: 12px; color: #5f6368;">Full (4/12) / Partial (8/12)</div>
+            <div style="font-size: 11px; color: #0f9d58; margin-top: 4px;">0% (0/12) drop-off before SUS rating</div>
           </div>
           <div style="background: #f8f9fa; padding: 16px; border-radius: 8px; text-align: center;">
-            <div style="font-size: 28px; font-weight: 700; color: #1a73e8;">84.0 ± 6.2 s</div>
-            <div style="font-size: 12px; color: #5f6368;">Mean Task Completion Time</div>
-            <div style="font-size: 11px; color: #1a73e8; margin-top: 4px;">5 instrumented devices (SUS 84.5 ± 3.3 · sequential v1→v2 pilot; was 142.0 s)</div>
+            <div style="font-size: 26px; font-weight: 700; color: #1a73e8;">70.6 ± 16.0</div>
+            <div style="font-size: 12px; color: #5f6368;">Brooke SUS Mean ± Sample SD</div>
+            <div style="font-size: 11px; color: #1a73e8; margin-top: 4px;">72.5 ± 15.3 excl. 1 all-5s straight-liner · &gt;68.0 benchmark</div>
           </div>
           <div style="background: #f8f9fa; padding: 16px; border-radius: 8px; text-align: center;">
-            <div style="font-size: 28px; font-weight: 700; color: #673ab7;">4.8 / 5.0</div>
-            <div style="font-size: 12px; color: #5f6368;">Overall Satisfaction</div>
-            <div style="font-size: 11px; color: #673ab7; margin-top: 4px;">18/18 students recommend to peers</div>
+            <div style="font-size: 26px; font-weight: 700; color: #673ab7;">4.17 ± 0.72</div>
+            <div style="font-size: 12px; color: #5f6368;">Overall Satisfaction (1–5)</div>
+            <div style="font-size: 11px; color: #673ab7; margin-top: 4px;">12/12 (100.0%) recommend to classmates</div>
           </div>
         </div>
       </div>
 
       <div class="form-card">
-        <h3 class="question-title">Qualitative Usability Themes</h3>
-        <p class="question-sub">Reported during pilot BSc usability sessions at AITU (summarized themes)</p>
-        <div class="quote-box">
-          <p>"Having C++ and Calculus terms explained in Kazakh (Қазақ тілі) saved me hours. Foreign apps always fail on our terminology."</p>
-          <div class="quote-author">— Theme 1: Trilingual STEM Terminology (1st Year BSc CS, iPhone 14)</div>
-        </div>
-        <div class="quote-box">
-          <p>"Opening without a login wall makes it completely friction-free in class. The 8-question self-check quiz right after the lecture is super useful."</p>
-          <div class="quote-author">— Theme 2: Zero-Login Guest Preview & Quizzes (2nd Year BSc SE, Win11 Edge)</div>
-        </div>
-        <div class="quote-box">
-          <p>"The live telemetry strip showed when our lecture hall dBFS noise floor rose and engaged the 120 Hz high-pass filter while keeping manual bypass control."</p>
-          <div class="quote-author">— Theme 3: Live dBFS Telemetry & HPF Toggle (3rd Year BSc Cybersecurity, Android 14)</div>
+        <h3 class="question-title">Per-Device Breakdown (Matches Paper Table IV)</h3>
+        <p class="question-sub">Computed directly by <code>scripts/analyze_survey_csv.mjs</code> from <code>benchmarks/survey_responses_verified.csv</code></p>
+        <div class="data-table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Device Class (n)</th>
+                <th>Completion (Full / Partial)</th>
+                <th>Satisfaction (1–5)</th>
+                <th>Brooke SUS Mean ± SD</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Android</strong> (n = 6)</td>
+                <td>1 Full / 5 Partial</td>
+                <td>4.17 ± 0.41</td>
+                <td>75.8 ± 17.2</td>
+              </tr>
+              <tr>
+                <td><strong>iPhone (iOS)</strong> (n = 3)</td>
+                <td>2 Full / 1 Partial</td>
+                <td>4.67 ± 0.58</td>
+                <td>75.0 ± 8.7</td>
+              </tr>
+              <tr>
+                <td><strong>Windows PC</strong> (n = 2)</td>
+                <td>1 Full / 1 Partial</td>
+                <td>3.00 ± 0.00</td>
+                <td>58.8 ± 15.9</td>
+              </tr>
+              <tr>
+                <td><strong>iPad / Tablet</strong> (n = 1)</td>
+                <td>0 Full / 1 Partial</td>
+                <td>5.00</td>
+                <td>50.0 (straight-line all-5s)</td>
+              </tr>
+              <tr style="background: #f1f8e9; font-weight: 600;">
+                <td>All Tested Devices (N = 12)</td>
+                <td>4 Full / 8 Partial (0 Failed)</td>
+                <td>4.17 ± 0.72</td>
+                <td>70.6 ± 16.0 (range 47.5–100.0)</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
 
-    <!-- TAB 3: AGGREGATED COHORT & WAVE BREAKDOWN -->
+    <!-- TAB 3: COHORT & AUDIT SUMMARY -->
     <div id="tab-spreadsheet" style="display:none;">
       <div class="form-card">
         <div class="summary-header">
           <div>
-            <h3 class="question-title">Aggregated Cohort Summary (N = 64 Reconciled: 8 + 38 + 18)</h3>
-            <p class="question-sub">Formative course-project surveys are archived in anonymized aggregate form (no individual Google Forms timestamps exported); formal trials use Informed_Consent_Form_L-easy.docx</p>
+            <h3 class="question-title">Cohort & Audit Summary (N = 51 Reconciled: 38 Formative + 13 Audited 18+)</h3>
+            <p class="question-sub">Formative course survey (N = 38) is archived in aggregate form (timestamps unarchived); audited cohort (N = 13 adults aged 18–19; 2 under-18 screened out) was collected via Google Forms (23.11.2026 16:04–17:04 UTC+5), archived in benchmarks/survey_responses_verified.csv alongside Informed_Consent_Form_L-easy.docx</p>
           </div>
           <span style="font-size: 11px; background: #e8f0fe; color: #1a73e8; padding: 4px 8px; border-radius: 4px; font-weight: 500;">
-            Aggregated Waves (Table I & Table IV)
+            Reconciled Audit (Table I & Table IV)
           </span>
         </div>
         <div class="data-table-wrapper">
           <table class="data-table">
             <thead>
               <tr>
-                <th>Wave / Cohort</th>
-                <th>Sample (n)</th>
-                <th>Instrument / Focus</th>
+                <th>Cohort / Wave</th>
+                <th>Sample & Age</th>
+                <th>Governance & Archive</th>
                 <th>Key Reconciled Findings</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td><strong>Wave 1: Interviews</strong></td>
-                <td>n = 8</td>
-                <td>Baseline qualitative pain points</td>
-                <td>75.0% (6/8) could not listen and write simultaneously; 62.5% (5/8) cited EN/RU/KZ STEM term & exam structure gaps</td>
+                <td><strong>Early Formative Survey (Table I)</strong></td>
+                <td>n = 38 BSc students</td>
+                <td>Aggregated course-project summary (raw timestamps not archived)</td>
+                <td>76.3% (29/38) fell behind in lectures; 81.6% never / 13.2% rarely re-listened to raw 50m audio (5.3% frequently); 68.4% EN/RU/KZ STEM term gap; 89.5% stress 4–5/5; 92.1% wanted integrated tool</td>
               </tr>
               <tr>
-                <td><strong>Wave 2: Course Survey</strong></td>
-                <td>n = 38</td>
-                <td>Formative quantitative questionnaire</td>
-                <td>76.3% (29/38) fell behind in lectures; 81.6% (31/38) never re-listened to raw 50m audio (5 rarely, 2 frequently); 68.4% (26/38) STEM language gap; 89.5% (34/38) stress 4–5/5; 92.1% (35/38) wanted integrated tool</td>
+                <td><strong>Audited Needs Cohort (Table I)</strong></td>
+                <td>n = 13 valid (15 raw) · Aged 18–19 (18.3 ± 0.5)</td>
+                <td>Mandatory digital consent + 18+ gate (2 under-18 screened out) · Google Forms 23.11.2026 16:04–17:04 UTC+5 · benchmarks/survey_responses_verified.csv</td>
+                <td>84.6% (11/13) fell behind; 100.0% (13/13) never (46.2%) or rarely (53.8%) re-listened; 69.2% (9/13) EN/RU/KZ STEM term gap; 30.8% high stress (2.77±1.54); 92.3% (12/13) wanted integrated tool</td>
               </tr>
               <tr>
-                <td><strong>Wave 3: Usability (v1 → v2)</strong></td>
-                <td>n = 18</td>
-                <td>Sequential onboarding & SUS pilot</td>
-                <td>Completion rose 77.8% (14/18) → 100% (18/18) after Guest Preview; pilot SUS = 84.5; satisfaction 4.8/5.0</td>
-              </tr>
-              <tr>
-                <td><strong>Timed Subset (Table IV)</strong></td>
-                <td>n = 5</td>
-                <td>Instrumented 5-device timing & SUS</td>
-                <td>Device times: 78, 82, 89, 79, 92 s → Mean 84.0 s, exact sample SD = 6.2 s; SUS 84.5 ± 3.3 (vs. 142.0 s in sequential v1)</td>
+                <td><strong>Audited Usability & SUS (Table IV)</strong></td>
+                <td>n = 12 cross-device testers (1 adult skipped test) · Aged 18–19</td>
+                <td>4 platforms (Android 6, iPhone iOS 3, Win 2, iPad 1) · Informed_Consent_Form_L-easy.docx</td>
+                <td>33.3% (4/12) Full / 66.7% (8/12) Partial completion (0% drop-off); Brooke SUS = 70.6 ± 16.0 (72.5 ± 15.3 excl. all-5s iPad outlier); satisfaction 4.17 ± 0.72; 12/12 (100%) recommend</td>
               </tr>
             </tbody>
           </table>

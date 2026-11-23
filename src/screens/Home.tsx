@@ -690,7 +690,7 @@ export default function Home({
                 rel="noopener noreferrer"
                 className="rounded-xl border border-line bg-elevated/60 py-2.5 px-3 text-center text-xs font-semibold text-copy-muted transition hover:border-accent hover:text-white flex items-center justify-center gap-1.5"
               >
-                <span>{tr("📋 Опрос студентов (N=64)", "📋 Студенттер сауалнамасы (N=64)", "📋 Student Surveys (N=64)")}</span>
+                <span>{tr("📋 Опрос студентов (N=51: 38+13)", "📋 Студенттер сауалнамасы (N=51: 38+13)", "📋 Student Surveys (N=51: 38+13)")}</span>
                 <span className="text-[10px]">↗</span>
               </a>
             </div>
@@ -948,7 +948,7 @@ export default function Home({
                 rel="noopener noreferrer"
                 className="mt-3.5 block w-full rounded-xl border border-accent/40 bg-accent-muted py-2 text-center text-xs font-bold text-accent-bright transition hover:border-accent"
               >
-                {tr("📋 Открыть данные и графики опроса студентов (N = 8 + 38 + 18 = 64) ↗", "📋 Студенттер сауалнамасының деректері мен графиктерін ашу (N = 8 + 38 + 18 = 64) ↗", "📋 Open student survey data & charts (N = 8 + 38 + 18 = 64) ↗")}
+                {tr("📋 Открыть данные и графики опроса студентов (N = 38 + 13 = 51, 18+ вериф.) ↗", "📋 Студенттер сауалнамасының деректері мен графиктерін ашу (N = 38 + 13 = 51, 18+ вериф.) ↗", "📋 Open student survey data & charts (N = 38 + 13 = 51, 18+ verified) ↗")}
               </a>
             </section>
           </div>
